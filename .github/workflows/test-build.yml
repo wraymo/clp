@@ -35,6 +35,9 @@ jobs:
         rsync
         wget
     
+    - name: Download submodules
+      run: ${{github.workspace}}/tools/scripts/deps-download/download-all.sh
+
     - name: Install packages from source
       run: |
         ${{github.workspace}}/tools/scripts/lib_install/fmtlib.sh 8.0.1
@@ -43,6 +46,7 @@ jobs:
         ${{github.workspace}}/tools/scripts/lib_install/mariadb-connector-c.sh 3.2.3
         ${{github.workspace}}/tools/scripts/lib_install/spdlog.sh 1.9.2
         ${{github.workspace}}/tools/scripts/lib_install/zstandard.sh 1.4.9
+
       
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
