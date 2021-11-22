@@ -54,6 +54,11 @@ namespace clg {
                         "Global metadata DB YAML config")
                 ;
 
+        // Define search options
+        po::options_description options_search("Search Options");
+        options_search.add_options()
+                ("json,j", po::bool_switch(&m_json_search), "Search json files");
+
         // Define input options
         po::options_description options_input("Input Options");
         options_input.add_options()
@@ -82,6 +87,7 @@ namespace clg {
         // Define visible options
         po::options_description visible_options;
         visible_options.add(options_general);
+        visible_options.add(options_search);
         visible_options.add(options_input);
         visible_options.add(options_output);
         visible_options.add(options_match_control);
@@ -101,6 +107,7 @@ namespace clg {
         // Aggregate all options
         po::options_description all_options;
         all_options.add(options_general);
+        all_options.add(options_search);
         all_options.add(options_input);
         all_options.add(options_output);
         all_options.add(options_match_control);

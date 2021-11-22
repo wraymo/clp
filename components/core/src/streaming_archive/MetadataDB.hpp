@@ -77,6 +77,7 @@ namespace streaming_archive {
 
             void get_id (std::string& id) const;
             void get_orig_file_id (std::string& id) const;
+            void get_type (std::string& type) const;
             void get_path (std::string& path) const;
             epochtime_t get_begin_ts () const;
             epochtime_t get_end_ts () const;

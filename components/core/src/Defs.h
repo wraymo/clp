@@ -16,6 +16,8 @@ typedef uint64_t variable_dictionary_id_t;
 static const variable_dictionary_id_t cVariableDictionaryIdMax = UINT64_MAX;
 typedef int64_t logtype_dictionary_id_t;
 static const logtype_dictionary_id_t cLogtypeDictionaryIdMax = INT64_MAX;
+typedef int64_t jsontype_dictionary_id_t;
+static const jsontype_dictionary_id_t cJsontypeDictionaryIdMax = INT64_MAX;
 
 typedef uint16_t archive_format_version_t;
 typedef uint64_t file_id_t;

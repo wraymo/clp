@@ -10,6 +10,7 @@
 #include "../../Defs.h"
 #include "../../ErrorCode.hpp"
 #include "../../LogTypeDictionaryReader.hpp"
+#include "../../JsonTypeDictionaryReader.hpp"
 #include "../../Query.hpp"
 #include "../../TimestampPattern.hpp"
 #include "../MetadataDB.hpp"
@@ -34,6 +35,7 @@ namespace streaming_archive { namespace reader {
         // Constructors
         File () :
             m_archive_logtype_dict(nullptr),
+            m_archive_jsontype_dict(nullptr),
             m_begin_ts(cEpochTimeMax),
             m_end_ts(cEpochTimeMin),
             m_is_in_segment(false),
@@ -90,8 +92,8 @@ namespace streaming_archive { namespace reader {
          * @throw FileReader::OperationFailed on any read failure
          * @throw Same as streaming_archive::reader::SegmentManager::read
          */
-        ErrorCode open_me (const LogTypeDictionaryReader& archive_logtype_dict, MetadataDB::FileIterator& file_metadata_ix, bool read_ahead,
-                const std::string& archive_logs_dir_path, SegmentManager& segment_manager);
+        ErrorCode open_me (const LogTypeDictionaryReader& archive_logtype_dict, const JsonTypeDictionaryReader& archive_jsontype_dict,
+                           MetadataDB::FileIterator& file_metadata_ix, bool read_ahead, const std::string& archive_logs_dir_path, SegmentManager& segment_manager);
         /**
          * Closes the file
          */
@@ -132,6 +134,7 @@ namespace streaming_archive { namespace reader {
 
         // Variables
         const LogTypeDictionaryReader* m_archive_logtype_dict;
+        const JsonTypeDictionaryReader* m_archive_jsontype_dict;
 
         epochtime_t m_begin_ts;
         epochtime_t m_end_ts;
@@ -139,6 +142,7 @@ namespace streaming_archive { namespace reader {
         std::string m_id_as_string;
         std::string m_orig_file_id_as_string;
         std::string m_orig_path;
+        std::string m_type;
 
         bool m_is_in_segment;
         segment_id_t m_segment_id;
@@ -159,6 +163,10 @@ namespace streaming_archive { namespace reader {
         int m_logtypes_fd;
         size_t m_logtypes_file_size;
         logtype_dictionary_id_t* m_logtypes;
+
+        int m_jsontypes_fd;
+        size_t m_jsontypes_file_size;
+        logtype_dictionary_id_t* m_jsontypes;
 
         int m_timestamps_fd;
         size_t m_timestamps_file_size;

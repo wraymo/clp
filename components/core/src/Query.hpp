@@ -10,6 +10,7 @@
 // Project headers
 #include "Defs.h"
 #include "LogTypeDictionaryEntry.hpp"
+#include "JsonTypeDictionaryEntry.hpp"
 #include "VariableDictionaryEntry.hpp"
 
 /**

@@ -9,14 +9,17 @@ namespace streaming_archive {
     constexpr char cLogsDirname[] = "l";
     constexpr char cSegmentsDirname[] = "s";
     constexpr char cSegmentListFilename[] = "segment_list.txt";
+    constexpr char cJsonTypeDictFilename[] = "jsontype.dict";
     constexpr char cLogTypeDictFilename[] = "logtype.dict";
     constexpr char cVarDictFilename[] = "var.dict";
+    constexpr char cJsonTypeSegmentIndexFilename[] = "jsontype.segindex";
     constexpr char cLogTypeSegmentIndexFilename[] = "logtype.segindex";
     constexpr char cVarSegmentIndexFilename[] = "var.segindex";
     constexpr char cMetadataFileName[] = "metadata";
     constexpr char cMetadataDBFileName[] = "metadata.db";
     constexpr char cTimestampsFileExtension[] = ".tme";
     constexpr char cLogTypeIdsFileExtension[] = ".lid";
+    constexpr char cJsonTypeIdsFileExtension[] = ".jid";
     constexpr char cVariablesFileExtension[] = ".var";
 
     namespace cMetadataDB {
@@ -35,6 +38,7 @@ namespace streaming_archive {
         namespace File {
             constexpr char Id[] = "id";
             constexpr char OrigFileId[] = "orig_file_id";
+            constexpr char Type[] = "type";
             constexpr char Path[] = "path";
             constexpr char BeginTimestamp[] = "begin_timestamp";
             constexpr char EndTimestamp[] = "end_timestamp";

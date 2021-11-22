@@ -57,7 +57,10 @@ namespace streaming_archive { namespace writer {
          * @throw streaming_archive::writer::OnDiskFile::OperationFailed if file is still open, any column could not be mapped, any column is truncated, or any
          * column fails to be appended
          */
-        void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, Segment& segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+         //TODO(Rui)
+        void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
+                                std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids) override;
         /**
          * Removes file's columns from disk

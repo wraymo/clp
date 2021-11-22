@@ -13,9 +13,6 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
-// json
-#include "../../../submodules/json/single_include/nlohmann/json.hpp"
-
 // spdlog
 #include <spdlog/spdlog.h>
 
@@ -30,6 +27,7 @@ using std::make_unique;
 using std::string;
 using std::unordered_set;
 using std::vector;
+using nlohmann::ordered_json;
 
 namespace streaming_archive { namespace writer {
     Archive::~Archive () {
@@ -164,6 +162,12 @@ namespace streaming_archive { namespace writer {
         // Preallocate logtype dictionary entry
         m_logtype_dict_entry_wrapper = make_unique<LogTypeDictionaryEntry>();
 
+        string jsontype_dict_path = archive_path_string + '/' + cJsonTypeDictFilename;
+        string jsontype_dict_segment_index_path = archive_path_string + '/' + cJsonTypeSegmentIndexFilename;
+        m_jsontype_dict.open(jsontype_dict_path, jsontype_dict_segment_index_path, cJsontypeDictionaryIdMax);
+
+        m_jsontype_dict_entry_wrapper = make_unique<JsonTypeDictionaryEntry>();
+
         // Open variable dictionary
         string var_dict_path = archive_path_string + '/' + cVarDictFilename;
         string var_dict_segment_index_path = archive_path_string + '/' + cVarSegmentIndexFilename;
@@ -195,14 +199,19 @@ namespace streaming_archive { namespace writer {
         // Close segments if necessary
         if (m_segment_for_files_with_timestamps.is_open()) {
             close_segment_and_persist_file_metadata(m_segment_for_files_with_timestamps, m_files_with_timestamps_in_segment,
-                                                    m_logtype_ids_in_segment_for_files_with_timestamps, m_var_ids_in_segment_for_files_with_timestamps);
+                                                    m_logtype_ids_in_segment_for_files_with_timestamps, m_jsontype_ids_in_segment_for_files_with_timestamps,
+                                                    m_var_ids_in_segment_for_files_with_timestamps);
             m_logtype_ids_in_segment_for_files_with_timestamps.clear();
+            m_jsontype_ids_in_segment_for_files_with_timestamps.clear();
             m_var_ids_in_segment_for_files_with_timestamps.clear();
         }
         if (m_segment_for_files_without_timestamps.is_open()) {
             close_segment_and_persist_file_metadata(m_segment_for_files_without_timestamps, m_files_without_timestamps_in_segment,
-                                                    m_logtype_ids_in_segment_for_files_without_timestamps, m_var_ids_in_segment_for_files_without_timestamps);
+                                                    m_logtype_ids_in_segment_for_files_without_timestamps,
+                                                    m_jsontype_ids_in_segment_for_files_without_timestamps,
+                                                    m_var_ids_in_segment_for_files_without_timestamps);
             m_logtype_ids_in_segment_for_files_without_timestamps.clear();
+            m_jsontype_ids_in_segment_for_files_without_timestamps.clear();
             m_var_ids_in_segment_for_files_without_timestamps.clear();
         }
 
@@ -212,6 +221,8 @@ namespace streaming_archive { namespace writer {
         m_logtype_dict.close();
         m_logtype_dict_entry_wrapper.reset(nullptr);
         m_var_dict.close();
+        m_jsontype_dict.close();
+        m_jsontype_dict_entry_wrapper.reset(nullptr);
 
         if (::close(m_segments_dir_fd) != 0) {
             // We've already fsynced, so this error shouldn't affect us. Therefore, just log it.
@@ -281,6 +292,17 @@ namespace streaming_archive { namespace writer {
         }
 
         file.write_encoded_msg(timestamp, logtype_id, encoded_vars, num_uncompressed_bytes);
+    }
+
+    void Archive::write_json_msg (File& file, epochtime_t timestamp, ordered_json& message, size_t num_uncompressed_bytes) {
+        vector<encoded_variable_t> encoded_vars;
+        EncodedVariableInterpreter::encode_and_add_to_dictionary(message, *m_jsontype_dict_entry_wrapper, m_logtype_dict, m_var_dict, encoded_vars);
+        jsontype_dictionary_id_t jsontype_id;
+        if (m_jsontype_dict.add_occurrence(m_jsontype_dict_entry_wrapper, jsontype_id)) {
+            m_jsontype_dict_entry_wrapper = make_unique<JsonTypeDictionaryEntry>();
+        }
+
+        file.write_encoded_msg(timestamp, jsontype_id, encoded_vars, num_uncompressed_bytes);
     }
 
     void Archive::write_dir_snapshot () {
@@ -387,18 +409,20 @@ namespace streaming_archive { namespace writer {
     }
 
     void Archive::append_file_to_segment (File*& file, Segment& segment, unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
+                                          unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
                                           unordered_set<variable_dictionary_id_t>& var_ids_in_segment, vector<File*>& files_in_segment)
     {
         if (!segment.is_open()) {
             segment.open(m_segments_dir_path, m_next_segment_id++, m_compression_level);
         }
 
-        file->append_to_segment(m_logtype_dict, segment, logtype_ids_in_segment, var_ids_in_segment);
+        file->append_to_segment(m_logtype_dict, m_jsontype_dict, segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
         files_in_segment.emplace_back(file);
 
         // Close current segment if its uncompressed size is greater than the target
         if (segment.get_uncompressed_size() >= m_target_segment_uncompressed_size) {
-            close_segment_and_persist_file_metadata(segment, files_in_segment, logtype_ids_in_segment, var_ids_in_segment);
+            close_segment_and_persist_file_metadata(segment, files_in_segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
+            jsontype_ids_in_segment.clear();
             logtype_ids_in_segment.clear();
             var_ids_in_segment.clear();
         }
@@ -421,10 +445,12 @@ namespace streaming_archive { namespace writer {
 
         if (file->has_ts_pattern()) {
             append_file_to_segment(file, m_segment_for_files_with_timestamps, m_logtype_ids_in_segment_for_files_with_timestamps,
-                                   m_var_ids_in_segment_for_files_with_timestamps, m_files_with_timestamps_in_segment);
+                                   m_jsontype_ids_in_segment_for_files_with_timestamps, m_var_ids_in_segment_for_files_with_timestamps,
+                                   m_files_with_timestamps_in_segment);
         } else {
             append_file_to_segment(file, m_segment_for_files_without_timestamps, m_logtype_ids_in_segment_for_files_without_timestamps,
-                                   m_var_ids_in_segment_for_files_without_timestamps, m_files_without_timestamps_in_segment);
+                                   m_jsontype_ids_in_segment_for_files_without_timestamps, m_var_ids_in_segment_for_files_without_timestamps,
+                                   m_files_without_timestamps_in_segment);
         }
 
         // Make sure file pointer is nulled and cannot be accessed outside
@@ -448,10 +474,12 @@ namespace streaming_archive { namespace writer {
 
     void Archive::close_segment_and_persist_file_metadata (Segment& segment, std::vector<File*>& files,
                                                            const unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                                           const unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                                            const unordered_set<variable_dictionary_id_t>& segment_var_ids)
     {
         auto segment_id = segment.get_id();
         m_logtype_dict.index_segment(segment_id, segment_logtype_ids);
+        m_jsontype_dict.index_segment(segment_id, segment_jsontype_ids);
         m_var_dict.index_segment(segment_id, segment_var_ids);
 
         m_stable_size += segment.get_compressed_size();
@@ -468,6 +496,7 @@ namespace streaming_archive { namespace writer {
 
         // Flush dictionaries
         m_logtype_dict.write_uncommitted_entries_to_disk();
+        m_jsontype_dict.write_uncommitted_entries_to_disk();
         m_var_dict.write_uncommitted_entries_to_disk();
 
         for (auto file : files) {

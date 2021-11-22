@@ -75,8 +75,9 @@ namespace streaming_archive { namespace writer {
         increment_num_uncompressed_bytes(num_uncompressed_bytes);
     }
 
-    void OnDiskFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, Segment& segment,
-                                        unordered_set<logtype_dictionary_id_t>& segment_logtype_ids, unordered_set<variable_dictionary_id_t>& segment_var_ids)
+    void OnDiskFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
+                                        unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                        unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids, unordered_set<variable_dictionary_id_t>& segment_var_ids)
     {
         if (m_is_open) {
             throw OperationFailed(ErrorCode_Unsupported, __FILENAME__, __LINE__);

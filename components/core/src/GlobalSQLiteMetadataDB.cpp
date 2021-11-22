@@ -34,6 +34,7 @@ enum class UpdateArchiveSizeStmtFieldIndexes : uint16_t {
 enum class FilesTableFieldIndexes : uint16_t {
     Id = 0,  // NOTE: This needs to be the first item in the list
     OrigFileId,
+    Type,
     Path,
     BeginTimestamp,
     EndTimestamp,
@@ -170,6 +171,9 @@ void GlobalSQLiteMetadataDB::open () {
     file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId)].first = streaming_archive::cMetadataDB::File::OrigFileId;
     file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId)].second = "TEXT";
 
+    file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Type)].first = streaming_archive::cMetadataDB::File::Type;
+    file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Type)].second = "TEXT";
+
     file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Path)].first = streaming_archive::cMetadataDB::File::Path;
     file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Path)].second = "TEXT";
 
@@ -277,6 +281,7 @@ void GlobalSQLiteMetadataDB::update_metadata_for_files (const string& archive_id
     for (auto file : files) {
         m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Id) + 1, file->get_id_as_string(), false);
         m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId) + 1, file->get_orig_file_id_as_string(), false);
+        m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Type) + 1, file->get_type_as_string(), false);
         m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Path) + 1, file->get_orig_path(), false);
         m_upsert_file_statement->bind_int64(enum_to_underlying_type(FilesTableFieldIndexes::BeginTimestamp) + 1, file->get_begin_ts());
         m_upsert_file_statement->bind_int64(enum_to_underlying_type(FilesTableFieldIndexes::EndTimestamp) + 1, file->get_end_ts());

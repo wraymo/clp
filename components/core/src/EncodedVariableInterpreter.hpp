@@ -8,8 +8,12 @@
 // Project headers
 #include "Query.hpp"
 #include "TraceableException.hpp"
+#include "LogTypeDictionaryReader.hpp"
+#include "LogTypeDictionaryWriter.hpp"
 #include "VariableDictionaryReader.hpp"
 #include "VariableDictionaryWriter.hpp"
+
+using nlohmann::ordered_json;
 
 /**
  * Class to parse and encode strings into encoded variables and to interpret encoded variables back into strings. An encoded variable is one of:
@@ -70,6 +74,12 @@ public:
      */
     static void encode_and_add_to_dictionary (const std::string& message, LogTypeDictionaryEntry& logtype_dict_entry, VariableDictionaryWriter& var_dict,
                                               std::vector<encoded_variable_t>& encoded_vars);
+
+    static void encode_json_object_and_add_to_dictionary (ordered_json& object, JsonTypeDictionaryEntry& jsontype_dict_entry,
+                                                          LogTypeDictionaryWriter& logtype_dict, VariableDictionaryWriter& var_dict,
+                                                          std::vector<encoded_variable_t>& encoded_vars);
+    static void encode_and_add_to_dictionary (ordered_json& message, JsonTypeDictionaryEntry& jsontype_dict_entry, LogTypeDictionaryWriter& logtype_dict,
+                                              VariableDictionaryWriter& var_dict, std::vector<encoded_variable_t>& encoded_vars);
     /**
      * Decodes all variables and decompresses them into a message
      * @param logtype_dict_entry
@@ -78,8 +88,14 @@ public:
      * @param decompressed_msg
      * @return true if successful, false otherwise
      */
+    static bool decode_variables_into_message(const JsonTypeDictionaryEntry& jsontype_dict_entry, const LogTypeDictionaryReader &logtype_dict,
+                                              const VariableDictionaryReader &var_dict, const std::vector<encoded_variable_t> &encoded_vars,
+                                              std::string &decompressed_msg);
+    static bool decode_variables_into_json_message (ordered_json& object, const LogTypeDictionaryReader &logtype_dict,
+                                                    const VariableDictionaryReader &var_dict, size_t &var_ix,
+                                                    const std::vector<encoded_variable_t> &encoded_vars);
     static bool decode_variables_into_message (const LogTypeDictionaryEntry& logtype_dict_entry, const VariableDictionaryReader& var_dict,
-                                               const std::vector<encoded_variable_t>& encoded_vars, std::string& decompressed_msg);
+                                               const std::vector<encoded_variable_t>& encoded_vars, size_t var_ix, std::string& decompressed_msg, bool check);
 
     /**
      * Encodes a string-form variable, and if it is dictionary variable, searches for its ID in the given variable dictionary

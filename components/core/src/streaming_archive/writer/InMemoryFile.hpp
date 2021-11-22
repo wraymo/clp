@@ -67,7 +67,9 @@ namespace streaming_archive { namespace writer {
          * @param segment_var_ids
          * @throw streaming_archive::writer::InMemoryFile::OperationFailed if file is still open or any column fails to be appended
          */
-        void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, Segment& segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+        void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
+                                std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids) override;
         /**
          * Cleans up any data after inserting the file into the segment
@@ -86,6 +88,7 @@ namespace streaming_archive { namespace writer {
 
         PageAllocatedVector<epochtime_t> m_timestamps;
         PageAllocatedVector<logtype_dictionary_id_t> m_logtypes;
+        PageAllocatedVector<logtype_dictionary_id_t> m_jsontypes;
         PageAllocatedVector<encoded_variable_t> m_variables;
 
         bool m_is_written_out;

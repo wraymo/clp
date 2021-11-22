@@ -4,6 +4,9 @@
 // C++ standard libraries
 #include <string>
 
+// json
+#include "../submodules/json/single_include/nlohmann/json.hpp"
+
 // Project headers
 #include "ErrorCode.hpp"
 #include "ParsedMessage.hpp"
@@ -47,6 +50,9 @@ public:
      */
     bool parse_next_message (bool drain_source, ReaderInterface& reader, ParsedMessage& message);
 
+    bool parse_next_json_message(ReaderInterface& reader, size_t buffer_length, const char* buffer, size_t& buf_pos, ParsedMessage& message);
+    bool parse_next_json_message(ReaderInterface& reader, ParsedMessage& message);
+
 private:
     // Methods
     /**
@@ -55,6 +61,7 @@ private:
      * @return Whether a complete message has been parsed
      */
     bool parse_line (ParsedMessage& message);
+    bool parse_json_line (ParsedMessage& message);
 
     // Variables
     std::string m_line;

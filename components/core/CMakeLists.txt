@@ -164,6 +164,12 @@ set(SOURCE_FILES_clp
         src/GlobalMySQLMetadataDB.hpp
         src/GlobalSQLiteMetadataDB.cpp
         src/GlobalSQLiteMetadataDB.hpp
+        src/JsonTypeDictionaryEntry.cpp
+        src/JsonTypeDictionaryEntry.hpp
+        src/JsonTypeDictionaryReader.cpp
+        src/JsonTypeDictionaryReader.hpp
+        src/JsonTypeDictionaryWriter.cpp
+        src/JsonTypeDictionaryWriter.hpp
         src/LibarchiveFileReader.cpp
         src/LibarchiveFileReader.hpp
         src/LibarchiveReader.cpp
@@ -253,8 +259,7 @@ set(SOURCE_FILES_clp
         submodules/date/include/date/date.h
         submodules/json/single_include/nlohmann/json.hpp
         submodules/sqlite3/sqlite3.c
-        submodules/sqlite3/sqlite3.h
-        )
+        submodules/sqlite3/sqlite3.h)
 add_executable(clp ${SOURCE_FILES_clp})
 target_link_libraries(clp
         PRIVATE

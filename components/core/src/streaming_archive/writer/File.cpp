@@ -3,6 +3,9 @@
 // Project headers
 #include "../../EncodedVariableInterpreter.hpp"
 
+#include <chrono>
+#include <iostream>
+
 using std::string;
 using std::to_string;
 using std::unordered_set;
@@ -82,6 +85,80 @@ namespace streaming_archive { namespace writer {
                     }
                 }
             }
+        }
+    }
+
+    void File::append_logtype_and_var_ids_to_segment_sets(ordered_json& object, const LogTypeDictionaryWriter &logtype_dict, const encoded_variable_t *vars,
+                                                          size_t num_vars, size_t& var_ix, unordered_set<logtype_dictionary_id_t> &segment_logtype_ids,
+                                                          unordered_set<variable_dictionary_id_t> &segment_var_ids) {
+        for (auto i = object.begin(); i != object.end(); ++i) {
+            if (i.value().is_object() || i.value().is_array()) {
+                append_logtype_and_var_ids_to_segment_sets(i.value(), logtype_dict, vars, num_vars, var_ix, segment_logtype_ids, segment_var_ids);
+            } else if (i.value().is_string()){
+                string str = i.value().get<string>();
+                if (JsonTypeDictionaryEntry::is_string_var(str)) {
+                    if (var_ix > num_vars) {
+                        throw OperationFailed(ErrorCode_Corrupt, __FILENAME__, __LINE__);
+                    }
+
+                    auto var = vars[var_ix];
+                    segment_var_ids.emplace(EncodedVariableInterpreter::decode_var_dict_id(var));
+                    ++var_ix;
+                } else if (JsonTypeDictionaryEntry::is_double_var(str) || JsonTypeDictionaryEntry::is_non_double_var(str) ||
+                           JsonTypeDictionaryEntry::is_boolean_var(str)) {
+                    ++var_ix;
+                } else if (JsonTypeDictionaryEntry::is_logtype(str)) {
+                    logtype_dictionary_id_t logtype_id = JsonTypeDictionaryEntry::get_logtype_id(str);
+
+                    auto logtype_dict_entry_ptr = logtype_dict.get_entry(logtype_id);
+                    auto& logtype_dict_entry = *logtype_dict_entry_ptr;
+                    segment_logtype_ids.emplace(logtype_id);
+
+                    auto msg_num_vars = logtype_dict_entry.get_num_vars();
+                    if (var_ix + msg_num_vars > num_vars) {
+                        throw OperationFailed(ErrorCode_Corrupt, __FILENAME__, __LINE__);
+                    }
+
+                    for (size_t msg_var_ix = 0; msg_var_ix < msg_num_vars; ++msg_var_ix, ++var_ix) {
+                        if (LogTypeDictionaryEntry::VarDelim::NonDouble == logtype_dict_entry.get_var_delim(msg_var_ix)) {
+                            auto var = vars[var_ix];
+                            if (EncodedVariableInterpreter::is_var_dict_id(var)) {
+                                segment_var_ids.emplace(EncodedVariableInterpreter::decode_var_dict_id(var));
+                            }
+                        }
+                    }
+                } else {
+                    throw OperationFailed(ErrorCode_Corrupt, __FILENAME__, __LINE__);
+                }
+            }
+        }
+    }
+
+    void File::append_jsontype_and_var_ids_to_segment_sets (const JsonTypeDictionaryWriter& jsontype_dict, const LogTypeDictionaryWriter& logtype_dict,
+                                                            const jsontype_dictionary_id_t* jsontype_ids, size_t num_jsontypes, const encoded_variable_t* vars,
+                                                            size_t num_vars, unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
+                                                            unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                                            unordered_set<variable_dictionary_id_t>& segment_var_ids)
+    {
+        size_t var_ix = 0;
+        for (size_t i = 0; i < num_jsontypes; ++i) {
+            // Add jsontype to set
+            auto jsontype_id = jsontype_ids[i];
+            segment_jsontype_ids.emplace(jsontype_id);
+            auto jsontype_dict_entry_ptr = jsontype_dict.get_entry(jsontype_id);
+            auto& jsontype_dict_entry = *jsontype_dict_entry_ptr;
+
+//            auto begin = std::chrono::system_clock::now();
+            ordered_json object = ordered_json::parse(jsontype_dict_entry.get_value());
+//            auto end = std::chrono::system_clock::now();
+//            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+//            std::cout << "File::append_jsontype_and_var_ids_to_segment_sets parse time: " << duration.count() << std::endl;
+
+            if (object.is_discarded()) {
+                throw OperationFailed(ErrorCode_Corrupt, __FILENAME__, __LINE__);
+            }
+
+            append_logtype_and_var_ids_to_segment_sets(object, logtype_dict, vars, num_vars, var_ix, segment_logtype_ids, segment_var_ids);
         }
     }
 

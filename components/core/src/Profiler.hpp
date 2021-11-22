@@ -26,6 +26,7 @@ public:
     enum class FragmentedMeasurementIndex : size_t {
         SegmentRead = 0,
         LogtypeDictRead,
+        JsonTypeDictRead,
         VarDictRead,
         MessageSearch,
         SegmentIndexRead,
@@ -35,6 +36,7 @@ public:
     enum class FragmentedMeasurementEnabled : bool {
         SegmentRead = true,
         LogtypeDictRead = true,
+        JsonTypeDictRead = true,
         VarDictRead = true,
         MessageSearch = true,
         SegmentIndexRead = true,

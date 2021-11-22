@@ -10,6 +10,7 @@
 
 // Project headers
 #include "../../ErrorCode.hpp"
+#include "../../JsonTypeDictionaryReader.hpp"
 #include "../../LogTypeDictionaryReader.hpp"
 #include "../../Query.hpp"
 #include "../../SQLiteDB.hpp"
@@ -126,6 +127,7 @@ namespace streaming_archive { namespace reader {
         std::string m_logs_dir_path;
         std::string m_segments_dir_path;
         LogTypeDictionaryReader m_logtype_dictionary;
+        JsonTypeDictionaryReader m_jsontype_dictionary;
         VariableDictionaryReader m_var_dictionary;
 
         SegmentManager m_segment_manager;

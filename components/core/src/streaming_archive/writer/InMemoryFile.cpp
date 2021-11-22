@@ -37,7 +37,13 @@ namespace streaming_archive { namespace writer {
             size_t num_uncompressed_bytes)
     {
         m_timestamps.push_back(timestamp);
-        m_logtypes.push_back(logtype_id);
+
+        if (get_type() == FileType::TEXT) {
+            m_logtypes.push_back(logtype_id);
+        } else {
+            m_jsontypes.push_back(logtype_id);
+        }
+
         m_variables.push_back_all(encoded_vars);
         increment_num_messages_and_variables(1, encoded_vars.size());
 
@@ -45,8 +51,10 @@ namespace streaming_archive { namespace writer {
         increment_num_uncompressed_bytes(num_uncompressed_bytes);
     }
 
-    void InMemoryFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, Segment& segment,
-                                          unordered_set<logtype_dictionary_id_t>& segment_logtype_ids, unordered_set<variable_dictionary_id_t>& segment_var_ids)
+    void InMemoryFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
+                                          unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                          unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
+                                          unordered_set<variable_dictionary_id_t>& segment_var_ids)
     {
         if (m_is_open) {
             throw OperationFailed(ErrorCode_Unsupported, __FILENAME__, __LINE__);
@@ -54,15 +62,26 @@ namespace streaming_archive { namespace writer {
 
         // Add file's logtype and variable IDs to respective segment sets
         auto logtype_ids = m_logtypes.data();
+        auto jsontype_ids = m_jsontypes.data();
         auto variables = m_variables.data();
-        append_logtype_and_var_ids_to_segment_sets(logtype_dict, logtype_ids, m_logtypes.size(), variables, m_variables.size(), segment_logtype_ids,
-                                                   segment_var_ids);
+
+        if (get_type() == FileType::TEXT) {
+            append_logtype_and_var_ids_to_segment_sets(logtype_dict, logtype_ids, m_logtypes.size(), variables, m_variables.size(), segment_logtype_ids,
+                                                       segment_var_ids);
+        } else {
+            append_jsontype_and_var_ids_to_segment_sets(jsontype_dict, logtype_dict, jsontype_ids, m_jsontypes.size(), variables, m_variables.size(),
+                                                        segment_jsontype_ids, segment_logtype_ids, segment_var_ids);
+        }
 
         // Append files to segment
         uint64_t segment_timestamps_uncompressed_pos;
         segment.append(reinterpret_cast<const char*>(m_timestamps.data()), m_timestamps.size_in_bytes(), segment_timestamps_uncompressed_pos);
         uint64_t segment_logtypes_uncompressed_pos;
-        segment.append(reinterpret_cast<const char*>(m_logtypes.data()), m_logtypes.size_in_bytes(), segment_logtypes_uncompressed_pos);
+        if (get_type() == FileType::TEXT) {
+            segment.append(reinterpret_cast<const char*>(m_logtypes.data()), m_logtypes.size_in_bytes(), segment_logtypes_uncompressed_pos);
+        } else {
+            segment.append(reinterpret_cast<const char*>(m_jsontypes.data()), m_jsontypes.size_in_bytes(), segment_logtypes_uncompressed_pos);
+        }
         uint64_t segment_variables_uncompressed_pos;
         segment.append(reinterpret_cast<const char*>(m_variables.data()), m_variables.size_in_bytes(), segment_variables_uncompressed_pos);
         set_segment_metadata(segment.get_id(), segment_timestamps_uncompressed_pos, segment_logtypes_uncompressed_pos, segment_variables_uncompressed_pos);

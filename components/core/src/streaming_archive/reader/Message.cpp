@@ -5,8 +5,16 @@ namespace streaming_archive { namespace reader {
         return m_message_number;
     }
 
+    Message::MessageType Message::get_message_type() const {
+        return m_message_type;
+    }
+
     logtype_dictionary_id_t Message::get_logtype_id () const {
         return m_logtype_id;
+    }
+
+    logtype_dictionary_id_t Message::get_jsontype_id () const {
+        return m_jsontype_id;
     }
 
     const std::vector<encoded_variable_t>& Message::get_vars () const {
@@ -21,8 +29,16 @@ namespace streaming_archive { namespace reader {
         m_message_number = message_number;
     }
 
+    void Message::set_message_type(MessageType message_type) {
+        m_message_type = message_type;
+    }
+
     void Message::set_logtype_id (logtype_dictionary_id_t logtype_id) {
         m_logtype_id = logtype_id;
+    }
+
+    void Message::set_jsontype_id (jsontype_dictionary_id_t jsontype_id) {
+        m_jsontype_id = jsontype_id;
     }
 
     void Message::add_var (encoded_variable_t var) {

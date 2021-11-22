@@ -29,15 +29,17 @@ namespace streaming_archive { namespace reader {
         return m_end_ts;
     }
 
-    ErrorCode File::open_me (const LogTypeDictionaryReader& archive_logtype_dict, MetadataDB::FileIterator& file_metadata_ix, bool read_ahead,
-            const string& archive_logs_dir_path, SegmentManager& segment_manager)
+    ErrorCode File::open_me (const LogTypeDictionaryReader& archive_logtype_dict, const JsonTypeDictionaryReader& archive_jsontype_dict,
+                             MetadataDB::FileIterator& file_metadata_ix, bool read_ahead, const string& archive_logs_dir_path, SegmentManager& segment_manager)
     {
         m_archive_logtype_dict = &archive_logtype_dict;
+        m_archive_jsontype_dict = &archive_jsontype_dict;
 
         // Populate metadata from database document
         file_metadata_ix.get_id(m_id_as_string);
         file_metadata_ix.get_orig_file_id(m_orig_file_id_as_string);
         file_metadata_ix.get_path(m_orig_path);
+        file_metadata_ix.get_type(m_type);
         m_begin_ts = file_metadata_ix.get_begin_ts();
         m_end_ts = file_metadata_ix.get_end_ts();
 
@@ -128,7 +130,10 @@ namespace streaming_archive { namespace reader {
                     close_me();
                     return error_code;
                 }
-                m_logtypes = m_segment_logtypes.get();
+                if (m_type == "text")
+                    m_logtypes = m_segment_logtypes.get();
+                else
+                    m_jsontypes = m_segment_logtypes.get();
             }
 
             if (m_num_variables > 0) {
@@ -174,6 +179,23 @@ namespace streaming_archive { namespace reader {
                 return ErrorCode_Truncated;
             }
 
+            // TODO(Rui)
+//            // Open jsontype IDs file
+//            column_path = file_path;
+//            column_path += cJsonTypeIdsFileExtension;
+//            error_code = memory_map_file(column_path, read_ahead, m_jsontypes_fd, m_logtypes_file_size, ptr);
+//            if (ErrorCode_Success != error_code) {
+//                close_me();
+//                return error_code;
+//            }
+//            m_logtypes = reinterpret_cast<logtype_dictionary_id_t*>(ptr);
+//            size_t num_logtypes_read = m_logtypes_file_size / sizeof(logtype_dictionary_id_t);
+//            if (num_logtypes_read < m_num_messages) {
+//                SPDLOG_ERROR("There are fewer logtypes on disk ({}) than the metadata ({}) indicates.", num_logtypes_read, m_num_messages);
+//                close_me();
+//                return ErrorCode_Truncated;
+//            }
+
             // Open logtype IDs file
             column_path = file_path;
             column_path += cLogTypeIdsFileExtension;
@@ -189,6 +211,7 @@ namespace streaming_archive { namespace reader {
                 close_me();
                 return ErrorCode_Truncated;
             }
+
 
             // Open variables file
             column_path = file_path;
@@ -347,7 +370,7 @@ namespace streaming_archive { namespace reader {
 
         return found_msg;
     }
-
+//TODO
     const SubQuery* File::find_message_matching_query (const Query& query, Message& msg) {
         const SubQuery* matching_sub_query = nullptr;
         while (m_msgs_ix < m_num_messages && nullptr == matching_sub_query) {
@@ -410,14 +433,28 @@ namespace streaming_archive { namespace reader {
         // Get timestamp
         msg.set_timestamp(m_timestamps[m_msgs_ix]);
 
-        // Get log-type
-        auto logtype_id = m_logtypes[m_msgs_ix];
-        msg.set_logtype_id(logtype_id);
+        size_t num_vars = 0;
+        if (m_type == "text") {
+            msg.set_message_type(Message::MessageType::TEXT);
 
-        // Get variables
+            // Get log-type
+            auto logtype_id = m_logtypes[m_msgs_ix];
+            msg.set_logtype_id(logtype_id);
+
+            const auto& logtype_dictionary_entry = m_archive_logtype_dict->get_entry(logtype_id);
+            num_vars = logtype_dictionary_entry.get_num_vars();
+        } else {
+            msg.set_message_type(Message::MessageType::JSON);
+
+            // Get json-type
+            auto jsontype_id = m_jsontypes[m_msgs_ix];
+            msg.set_jsontype_id(jsontype_id);
+
+            const auto& jsontype_dictionary_entry = m_archive_jsontype_dict->get_entry(jsontype_id);
+            num_vars = jsontype_dictionary_entry.get_num_vars();
+        }
+
         msg.clear_vars();
-        const auto& logtype_dictionary_entry = m_archive_logtype_dict->get_entry(logtype_id);
-        auto num_vars = logtype_dictionary_entry.get_num_vars();
         if (m_variables_ix + num_vars > m_num_variables) {
             return false;
         }
@@ -428,7 +465,6 @@ namespace streaming_archive { namespace reader {
         }
 
         ++m_msgs_ix;
-
         return true;
     }
 } }

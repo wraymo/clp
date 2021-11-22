@@ -170,14 +170,165 @@ void EncodedVariableInterpreter::encode_and_add_to_dictionary (const string& mes
     }
 }
 
+void EncodedVariableInterpreter::encode_json_object_and_add_to_dictionary (ordered_json& object, JsonTypeDictionaryEntry& jsontype_dict_entry,
+                                                                           LogTypeDictionaryWriter& logtype_dict, VariableDictionaryWriter& var_dict,
+                                                                           vector<encoded_variable_t>& encoded_vars)
+{
+    for (auto i = object.begin(); i != object.end(); ++i) {
+        if (i.value().is_object() || i.value().is_array()) {
+            encode_json_object_and_add_to_dictionary(i.value(), jsontype_dict_entry, logtype_dict, var_dict, encoded_vars);
+        } else {
+            encoded_variable_t encoded_var;
+            if (i.value().is_string()) {
+                string str = i.value().get<string>();
+                if (str.find(' ') == string::npos) {
+                    variable_dictionary_id_t id;
+                    var_dict.add_occurrence(str, id);
+                    encoded_var = encode_var_dict_id(id);
+                    encoded_vars.push_back(encoded_var);
+
+                    JsonTypeDictionaryEntry::add_string_var(i.value());
+                } else {
+                    logtype_dictionary_id_t logtype_id;
+                    std::unique_ptr<LogTypeDictionaryEntry> logtype_dict_entry = std::make_unique<LogTypeDictionaryEntry>();
+
+                    encode_and_add_to_dictionary(str, *logtype_dict_entry, var_dict, encoded_vars);
+                    logtype_dict.add_occurrence(logtype_dict_entry, logtype_id);
+                    JsonTypeDictionaryEntry::add_logtype(i.value(), logtype_id);
+                }
+            } else if (i.value().is_number_float()) {
+                uint8_t num_integer_digits;
+                uint8_t num_fractional_digits;
+
+                double value = i.value().get<double>();
+                convert_string_to_representable_double_var(std::to_string(value), num_integer_digits, num_fractional_digits, encoded_var);
+
+                JsonTypeDictionaryEntry::add_double_var(i.value(), num_integer_digits, num_fractional_digits);
+                encoded_vars.push_back(encoded_var);
+            } else if (i.value().is_number_integer()) {
+                encoded_var = i.value().get<encoded_variable_t>();
+                JsonTypeDictionaryEntry::add_non_double_var(i.value());
+
+                encoded_vars.push_back(encoded_var);
+            } else if (i.value().is_boolean()) {
+                bool value = i.value().get<bool>();
+                if (value) {
+                    encoded_vars.push_back(1);
+                } else {
+                    encoded_vars.push_back(0);
+                }
+
+                JsonTypeDictionaryEntry::add_boolean_var(i.value());
+            }
+        }
+    }
+}
+
+void EncodedVariableInterpreter::encode_and_add_to_dictionary (ordered_json& message, JsonTypeDictionaryEntry& jsontype_dict_entry,
+                                                               LogTypeDictionaryWriter& logtype_dict, VariableDictionaryWriter& var_dict,
+                                                               vector<encoded_variable_t>& encoded_vars)
+{
+    encode_json_object_and_add_to_dictionary(message, jsontype_dict_entry, logtype_dict, var_dict, encoded_vars);
+    jsontype_dict_entry.set_num_vars(encoded_vars.size());
+    jsontype_dict_entry.set(message);
+}
+
+bool EncodedVariableInterpreter::decode_variables_into_json_message (ordered_json& object, const LogTypeDictionaryReader &logtype_dict,
+                                                                     const VariableDictionaryReader &var_dict, size_t &var_ix,
+                                                                     const std::vector<encoded_variable_t> &encoded_vars)
+{
+    for (auto i = object.begin(); i != object.end(); ++i) {
+        if (i.value().is_object() || i.value().is_array()) {
+            if (!decode_variables_into_json_message(i.value(), logtype_dict, var_dict, var_ix, encoded_vars))
+                return false;
+        } else if (i.value().is_string()) {
+            string str = i.value().get<string>();
+            if (JsonTypeDictionaryEntry::is_string_var(str)) {
+                auto var_dict_id = decode_var_dict_id(encoded_vars[var_ix]);
+                i.value() = var_dict.get_value(var_dict_id);
+                var_ix++;
+            } else if (JsonTypeDictionaryEntry::is_logtype(str)) {
+                logtype_dictionary_id_t logtype_id = JsonTypeDictionaryEntry::get_logtype_id(str);
+                const LogTypeDictionaryEntry& logtype_entry = logtype_dict.get_entry(logtype_id);
+                std::string decompressed_msg;
+                if (!decode_variables_into_message (logtype_entry, var_dict, encoded_vars, var_ix, decompressed_msg, false))
+                    return false;
+
+                i.value() = decompressed_msg;
+                var_ix += logtype_entry.get_num_vars();
+            } else if (JsonTypeDictionaryEntry::is_double_var(str)) {
+                double var_as_double = *reinterpret_cast<const double*>(&encoded_vars[var_ix]);
+                char double_str[cMaxCharsInRepresentableDoubleVar + 1];
+
+                auto encoded_value = (uint8_t)str[1];
+                uint8_t num_integer_digits = encoded_value >> 4U;
+                uint8_t num_fractional_digits = encoded_value & 0x0FU;
+                int double_str_length = num_integer_digits + 1 + num_fractional_digits;
+
+                if (std::signbit(var_as_double)) {
+                    ++double_str_length;
+                }
+                snprintf(double_str, sizeof(double_str), "%0*.*f", double_str_length, num_fractional_digits, var_as_double);
+
+                i.value() = std::stod(double_str);
+                var_ix++;
+            } else if (JsonTypeDictionaryEntry::is_non_double_var(str)) {
+                if (!is_var_dict_id(encoded_vars[var_ix])) {
+                    i.value() = encoded_vars[var_ix];
+                    var_ix++;
+                }
+            } else if (JsonTypeDictionaryEntry::is_boolean_var(str)){
+                if (encoded_vars[var_ix] == 1) {
+                    i.value() = true;
+                } else {
+                    i.value() = false;
+                }
+                var_ix++;
+            } else {
+                SPDLOG_ERROR("EncodedVariableInterpreter: Invalid value type for key '{}'.", i.key());
+                return false;
+            }
+        } else if (!i.value().is_null()){
+            SPDLOG_ERROR("EncodedVariableInterpreter: Invalid value type for key '{}'.", i.key());
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool EncodedVariableInterpreter::decode_variables_into_message (const JsonTypeDictionaryEntry& jsontype_dict_entry, const LogTypeDictionaryReader &logtype_dict,
+                                                                const VariableDictionaryReader &var_dict, const std::vector<encoded_variable_t> &encoded_vars,
+                                                                std::string &decompressed_msg)
+{
+    const auto& jsontype_value = jsontype_dict_entry.get_value();
+
+    ordered_json object = ordered_json::parse(jsontype_value);
+    if (object.is_discarded()) {
+        return false;
+    }
+
+    size_t var_ix = 0;
+    bool res = decode_variables_into_json_message(object, logtype_dict, var_dict, var_ix, encoded_vars);
+    if (!res) {
+        return res;
+    } else {
+        decompressed_msg = object.dump();
+        if (decompressed_msg.back() != '\n')
+            decompressed_msg += '\n';
+        return res;
+    }
+}
+
 bool EncodedVariableInterpreter::decode_variables_into_message (const LogTypeDictionaryEntry& logtype_dict_entry, const VariableDictionaryReader& var_dict,
-                                                                const vector<encoded_variable_t>& encoded_vars, string& decompressed_msg)
+                                                                const vector<encoded_variable_t>& encoded_vars, size_t var_ix, string& decompressed_msg,
+                                                                bool check)
 {
     size_t num_vars_in_logtype = logtype_dict_entry.get_num_vars();
 
     // Ensure the number of variables in the logtype matches the number of encoded variables given
     const auto& logtype_value = logtype_dict_entry.get_value();
-    if (num_vars_in_logtype != encoded_vars.size()) {
+    if (check && num_vars_in_logtype != encoded_vars.size()) {
         SPDLOG_ERROR("EncodedVariableInterpreter: Logtype '{}' contains {} variables, but {} were given for decoding.", logtype_value.c_str(),
                      num_vars_in_logtype, encoded_vars.size());
         return false;
@@ -195,17 +346,17 @@ bool EncodedVariableInterpreter::decode_variables_into_message (const LogTypeDic
         decompressed_msg.append(logtype_value, constant_begin_pos, var_position - constant_begin_pos);
 
         if (LogTypeDictionaryEntry::VarDelim::NonDouble == var_delim) {
-            if (!is_var_dict_id(encoded_vars[i])) {
-                decompressed_msg += std::to_string(encoded_vars[i]);
+            if (!is_var_dict_id(encoded_vars[var_ix + i])) {
+                decompressed_msg += std::to_string(encoded_vars[var_ix + i]);
             } else {
-                auto var_dict_id = decode_var_dict_id(encoded_vars[i]);
+                auto var_dict_id = decode_var_dict_id(encoded_vars[var_ix + i]);
                 decompressed_msg += var_dict.get_value(var_dict_id);
             }
 
             // Move past the variable delimiter
             constant_begin_pos = var_position + 1;
         } else { // LogTypeDictionaryEntry::VarDelim::Double == var_delim
-            double var_as_double = *reinterpret_cast<const double*>(&encoded_vars[i]);
+            double var_as_double = *reinterpret_cast<const double*>(&encoded_vars[var_ix + i]);
             int double_str_length = num_integer_digits + 1 + num_fractional_digits;
             if (std::signbit(var_as_double)) {
                 ++double_str_length;

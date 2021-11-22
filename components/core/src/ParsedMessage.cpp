@@ -10,7 +10,13 @@ void ParsedMessage::clear () {
 void ParsedMessage::clear_except_ts_patt () {
     m_ts_patt_changed = false;
     m_ts = 0;
-    m_content.clear();
+
+    if (m_message_type == MessageType::TEXT) {
+        m_content.clear();
+    } else {
+        m_json_content.clear();
+    }
+
     m_orig_num_bytes = 0;
     m_is_set = false;
 }
@@ -18,6 +24,7 @@ void ParsedMessage::clear_except_ts_patt () {
 void ParsedMessage::set (const TimestampPattern* timestamp_pattern, const epochtime_t timestamp, const string& line, size_t timestamp_begin_pos,
                          size_t timestamp_end_pos)
 {
+    m_message_type = MessageType::TEXT;
     if (timestamp_pattern != m_ts_patt) {
         m_ts_patt = timestamp_pattern;
         m_ts_patt_changed = true;
@@ -31,6 +38,17 @@ void ParsedMessage::set (const TimestampPattern* timestamp_pattern, const epocht
     }
     m_orig_num_bytes = line.length();
     m_is_set = true;
+}
+
+void ParsedMessage::set (const TimestampPattern* timestamp_pattern, const epochtime_t timestamp, const ordered_json& line)
+{
+    m_message_type = MessageType::JSON;
+    if (timestamp_pattern != m_ts_patt) {
+        m_ts_patt = timestamp_pattern;
+        m_ts_patt_changed = true;
+    }
+    m_ts = timestamp;
+    m_json_content = line;
 }
 
 void ParsedMessage::append_line (const string& line) {

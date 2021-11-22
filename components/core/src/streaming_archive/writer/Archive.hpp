@@ -12,9 +12,13 @@
 #include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid.hpp>
 
+// json
+#include "../../../submodules/json/single_include/nlohmann/json.hpp"
+
 // Project headers
 #include "../../ErrorCode.hpp"
 #include "../../GlobalMetadataDB.hpp"
+#include "../../JsonTypeDictionaryWriter.hpp"
 #include "../../LogTypeDictionaryWriter.hpp"
 #include "../../VariableDictionaryWriter.hpp"
 #include "../MetadataDB.hpp"
@@ -133,6 +137,7 @@ namespace streaming_archive { namespace writer {
          */
         void write_msg (File& file, epochtime_t timestamp, const std::string& message, size_t num_uncompressed_bytes);
 
+        void write_json_msg (File& file, epochtime_t timestamp, nlohmann::ordered_json& message, size_t num_uncompressed_bytes);
         /**
          * Writes snapshot of archive to disk including metadata of all files and new dictionary entries
          * @throw FileWriter::OperationFailed if failed to write or flush dictionaries
@@ -214,7 +219,8 @@ namespace streaming_archive { namespace writer {
          * @param files_in_segment
          */
         void append_file_to_segment (File*& file, Segment& segment, std::unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
-                std::unordered_set<variable_dictionary_id_t>& var_ids_in_segment, std::vector<File*>& files_in_segment);
+                                     std::unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
+                                     std::unordered_set<variable_dictionary_id_t>& var_ids_in_segment, std::vector<File*>& files_in_segment);
         /**
          * Writes the given files' metadata to the database using bulk writes
          * @param files
@@ -234,6 +240,7 @@ namespace streaming_archive { namespace writer {
          */
         void close_segment_and_persist_file_metadata (Segment& segment, std::vector<File*>& files,
                                                       const std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                                      const std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                                       const std::unordered_set<variable_dictionary_id_t>& segment_var_ids);
 
         /**
@@ -268,8 +275,10 @@ namespace streaming_archive { namespace writer {
         int m_segments_dir_fd;
 
         LogTypeDictionaryWriter m_logtype_dict;
+        JsonTypeDictionaryWriter m_jsontype_dict;
         // Wrapper to hold logtype dictionary entry that's preallocated for performance
         std::unique_ptr<LogTypeDictionaryEntry> m_logtype_dict_entry_wrapper;
+        std::unique_ptr<JsonTypeDictionaryEntry> m_jsontype_dict_entry_wrapper;
         VariableDictionaryWriter m_var_dict;
 
         boost::uuids::random_generator m_uuid_generator;
@@ -293,9 +302,11 @@ namespace streaming_archive { namespace writer {
         size_t m_target_segment_uncompressed_size;
         Segment m_segment_for_files_with_timestamps;
         std::unordered_set<logtype_dictionary_id_t> m_logtype_ids_in_segment_for_files_with_timestamps;
+        std::unordered_set<jsontype_dictionary_id_t> m_jsontype_ids_in_segment_for_files_with_timestamps;
         std::unordered_set<variable_dictionary_id_t> m_var_ids_in_segment_for_files_with_timestamps;
         Segment m_segment_for_files_without_timestamps;
         std::unordered_set<logtype_dictionary_id_t> m_logtype_ids_in_segment_for_files_without_timestamps;
+        std::unordered_set<jsontype_dictionary_id_t> m_jsontype_ids_in_segment_for_files_without_timestamps;
         std::unordered_set<variable_dictionary_id_t> m_var_ids_in_segment_for_files_without_timestamps;
 
         size_t m_stable_uncompressed_size;

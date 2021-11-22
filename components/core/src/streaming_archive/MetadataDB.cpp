@@ -16,6 +16,7 @@
 enum class FilesTableFieldIndexes : uint16_t {
     Id = 0,  // NOTE: This needs to be the first item in the list
     OrigFileId,
+    Type,
     Path,
     BeginTimestamp,
     EndTimestamp,
@@ -105,6 +106,7 @@ namespace streaming_archive {
         vector<string> field_names(enum_to_underlying_type(FilesTableFieldIndexes::Length));
         field_names[enum_to_underlying_type(FilesTableFieldIndexes::Id)] = streaming_archive::cMetadataDB::File::Id;
         field_names[enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId)] = streaming_archive::cMetadataDB::File::OrigFileId;
+        field_names[enum_to_underlying_type(FilesTableFieldIndexes::Type)] = streaming_archive::cMetadataDB::File::Type;
         field_names[enum_to_underlying_type(FilesTableFieldIndexes::Path)] = streaming_archive::cMetadataDB::File::Path;
         field_names[enum_to_underlying_type(FilesTableFieldIndexes::BeginTimestamp)] = streaming_archive::cMetadataDB::File::BeginTimestamp;
         field_names[enum_to_underlying_type(FilesTableFieldIndexes::EndTimestamp)] = streaming_archive::cMetadataDB::File::EndTimestamp;
@@ -204,6 +206,10 @@ namespace streaming_archive {
         m_statement.column_string(enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId), id);
     }
 
+    void MetadataDB::FileIterator::get_type(string& type) const {
+        m_statement.column_string(enum_to_underlying_type(FilesTableFieldIndexes::Type), type);
+    }
+
     void MetadataDB::FileIterator::get_path (string& path) const {
         m_statement.column_string(enum_to_underlying_type(FilesTableFieldIndexes::Path), path);
     }
@@ -252,6 +258,10 @@ namespace streaming_archive {
         return m_statement.column_int64(enum_to_underlying_type(FilesTableFieldIndexes::SegmentLogtypesPosition));
     }
 
+//    size_t MetadataDB::FileIterator::get_segment_jsontypes_pos () const {
+//      return m_statement.column_int64(enum_to_underlying_type(FilesTableFieldIndexes::SegmentJsontypesPosition));
+//    }
+
     size_t MetadataDB::FileIterator::get_segment_variables_pos () const {
         return m_statement.column_int64(enum_to_underlying_type(FilesTableFieldIndexes::SegmentVariablesPosition));
     }
@@ -269,6 +279,9 @@ namespace streaming_archive {
 
         file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId)].first = streaming_archive::cMetadataDB::File::OrigFileId;
         file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId)].second = "TEXT";
+
+        file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Type)].first = streaming_archive::cMetadataDB::File::Type;
+        file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Type)].second = "TEXT";
 
         file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Path)].first = streaming_archive::cMetadataDB::File::Path;
         file_field_names_and_types[enum_to_underlying_type(FilesTableFieldIndexes::Path)].second = "TEXT";
@@ -355,6 +368,7 @@ namespace streaming_archive {
         for (auto file : files) {
             m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Id) + 1, file->get_id_as_string(), false);
             m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId) + 1, file->get_orig_file_id_as_string(), false);
+            m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Type) + 1, file->get_type_as_string(), true);
             m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Path) + 1, file->get_orig_path(), false);
             m_upsert_file_statement->bind_int64(enum_to_underlying_type(FilesTableFieldIndexes::BeginTimestamp) + 1, file->get_begin_ts());
             m_upsert_file_statement->bind_int64(enum_to_underlying_type(FilesTableFieldIndexes::EndTimestamp) + 1, file->get_end_ts());

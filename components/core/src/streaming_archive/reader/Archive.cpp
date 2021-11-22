@@ -92,6 +92,15 @@ namespace streaming_archive { namespace reader {
         logtype_segment_index_path += cLogTypeSegmentIndexFilename;
         m_logtype_dictionary.open(logtype_dict_path, logtype_segment_index_path);
 
+        // Open json-type dictionary
+        string jsontype_dict_path = m_path;
+        jsontype_dict_path += '/';
+        jsontype_dict_path += cJsonTypeDictFilename;
+        string jsontype_segment_index_path = m_path;
+        jsontype_segment_index_path += '/';
+        jsontype_segment_index_path += cJsonTypeSegmentIndexFilename;
+        m_jsontype_dictionary.open(jsontype_dict_path, jsontype_segment_index_path);
+
         // Open variables dictionary
         string var_dict_path = m_path;
         var_dict_path += '/';
@@ -127,13 +136,16 @@ namespace streaming_archive { namespace reader {
         PROFILER_FRAGMENTED_MEASUREMENT_START(LogtypeDictRead)
         m_logtype_dictionary.read_new_entries();
         PROFILER_FRAGMENTED_MEASUREMENT_STOP(LogtypeDictRead)
+        PROFILER_FRAGMENTED_MEASUREMENT_START(JsonTypeDictRead)
+        m_jsontype_dictionary.read_new_entries();
+        PROFILER_FRAGMENTED_MEASUREMENT_STOP(JsonTypeDictRead)
         PROFILER_FRAGMENTED_MEASUREMENT_START(VarDictRead)
         m_var_dictionary.read_new_entries();
         PROFILER_FRAGMENTED_MEASUREMENT_STOP(VarDictRead)
     }
 
     ErrorCode Archive::open_file (File& file, MetadataDB::FileIterator& file_metadata_ix, bool read_ahead) {
-        return file.open_me(m_logtype_dictionary, file_metadata_ix, read_ahead, m_logs_dir_path, m_segment_manager);
+        return file.open_me(m_logtype_dictionary, m_jsontype_dictionary, file_metadata_ix, read_ahead, m_logs_dir_path, m_segment_manager);
     }
 
     void Archive::close_file (File& file) {
@@ -168,29 +180,41 @@ namespace streaming_archive { namespace reader {
         decompressed_msg.clear();
 
         // Build original message content
-        const logtype_dictionary_id_t logtype_id = compressed_msg.get_logtype_id();
-        const auto& logtype_entry = m_logtype_dictionary.get_entry(logtype_id);
-        if (!EncodedVariableInterpreter::decode_variables_into_message(logtype_entry, m_var_dictionary, compressed_msg.get_vars(), decompressed_msg)) {
-            SPDLOG_ERROR("streaming_archive::reader::Archive: Failed to decompress variables from logtype id {}", compressed_msg.get_logtype_id());
-            return false;
-        }
-
-        // Determine which timestamp pattern to use
-        const auto& timestamp_patterns = file.get_timestamp_patterns();
-        if (!timestamp_patterns.empty() && compressed_msg.get_message_number() >= timestamp_patterns[file.get_current_ts_pattern_ix()].first) {
-            while (true) {
-                if (file.get_current_ts_pattern_ix() >= timestamp_patterns.size() - 1) {
-                    // Already at last timestamp pattern
-                    break;
-                }
-                auto next_patt_start_message_num = timestamp_patterns[file.get_current_ts_pattern_ix() + 1].first;
-                if (compressed_msg.get_message_number() < next_patt_start_message_num) {
-                    // Not yet time for next timestamp pattern
-                    break;
-                }
-                file.increment_current_ts_pattern_ix();
+        if (compressed_msg.get_message_type() == Message::MessageType::TEXT) {
+            const logtype_dictionary_id_t logtype_id = compressed_msg.get_logtype_id();
+            const auto& logtype_entry = m_logtype_dictionary.get_entry(logtype_id);
+            if (!EncodedVariableInterpreter::decode_variables_into_message(logtype_entry, m_var_dictionary, compressed_msg.get_vars(), 0, decompressed_msg,
+                                                                           true)) {
+                SPDLOG_ERROR("streaming_archive::reader::Archive: Failed to decompress variables from logtype id {}", compressed_msg.get_logtype_id());
+                return false;
             }
-            timestamp_patterns[file.get_current_ts_pattern_ix()].second.insert_formatted_timestamp(compressed_msg.get_ts_in_milli(), decompressed_msg);
+
+            // Determine which timestamp pattern to use
+            const auto& timestamp_patterns = file.get_timestamp_patterns();
+            if (!timestamp_patterns.empty() && compressed_msg.get_message_number() >= timestamp_patterns[file.get_current_ts_pattern_ix()].first) {
+                while (true) {
+                    if (file.get_current_ts_pattern_ix() >= timestamp_patterns.size() - 1) {
+                        // Already at last timestamp pattern
+                        break;
+                    }
+                    auto next_patt_start_message_num = timestamp_patterns[file.get_current_ts_pattern_ix() + 1].first;
+                    if (compressed_msg.get_message_number() < next_patt_start_message_num) {
+                        // Not yet time for next timestamp pattern
+                        break;
+                    }
+                    file.increment_current_ts_pattern_ix();
+                }
+                timestamp_patterns[file.get_current_ts_pattern_ix()].second.insert_formatted_timestamp(compressed_msg.get_ts_in_milli(), decompressed_msg);
+            }
+        } else {
+            const jsontype_dictionary_id_t jsontype_id = compressed_msg.get_jsontype_id();
+            const auto& jsontype_entry = m_jsontype_dictionary.get_entry(jsontype_id);
+
+            if (!EncodedVariableInterpreter::decode_variables_into_message(jsontype_entry, m_logtype_dictionary, m_var_dictionary, compressed_msg.get_vars(),
+                                                                           decompressed_msg)) {
+                SPDLOG_ERROR("streaming_archive::reader::Archive: Failed to decompress variables from jsontype id {}", compressed_msg.get_jsontype_id());
+                return false;
+            }
         }
 
         return true;

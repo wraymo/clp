@@ -31,6 +31,7 @@ namespace clg {
 
         const std::string& get_search_strings_file_path () const { return m_search_strings_file_path; }
         bool ignore_case () const { return m_ignore_case; }
+        bool json_search () const { return m_json_search; }
         const std::string& get_archives_dir () const { return m_archives_dir; }
         const std::string& get_search_string () const { return m_search_string; }
         const std::string& get_file_path () const { return m_file_path; }
@@ -46,6 +47,7 @@ namespace clg {
         // Variables
         std::string m_search_strings_file_path;
         bool m_ignore_case;
+        bool m_json_search;
         std::string m_archives_dir;
         std::string m_search_string;
         std::string m_file_path;

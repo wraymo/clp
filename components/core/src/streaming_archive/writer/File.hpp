@@ -13,6 +13,7 @@
 #include "../../Defs.h"
 #include "../../ErrorCode.hpp"
 #include "../../LogTypeDictionaryWriter.hpp"
+#include "../../JsonTypeDictionaryWriter.hpp"
 #include "../../TimestampPattern.hpp"
 #include "Segment.hpp"
 
@@ -23,6 +24,8 @@ namespace streaming_archive { namespace writer {
      */
     class File {
     public:
+        enum class FileType { TEXT, JSON };
+
         // Types
         class OperationFailed : public TraceableException {
         public:
@@ -37,6 +40,7 @@ namespace streaming_archive { namespace writer {
 
         // Constructors
         File (const boost::uuids::uuid& id, const boost::uuids::uuid& orig_file_id, const std::string& orig_log_path, group_id_t group_id, size_t split_ix) :
+                m_type(FileType::TEXT),
                 m_id(id),
                 m_id_as_string(boost::uuids::to_string(m_id)),
                 m_orig_file_id(orig_file_id),
@@ -65,12 +69,17 @@ namespace streaming_archive { namespace writer {
         virtual bool is_open () const = 0;
         virtual void open () = 0;
         virtual void close () = 0;
-        virtual void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, Segment& segment,
+        virtual void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
                                         std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                        std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                         std::unordered_set<variable_dictionary_id_t>& segment_var_ids) = 0;
         virtual void cleanup_after_segment_insertion () = 0;
         virtual void write_encoded_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
                 size_t num_uncompressed_bytes) = 0;
+
+        void set_type (FileType type) { m_type = type; }
+        FileType get_type () { return m_type; }
+        std::string get_type_as_string() { return m_type == FileType::TEXT? "text": "json"; }
 
         /**
          * Changes timestamp pattern in use at current message in file
@@ -172,6 +181,16 @@ namespace streaming_archive { namespace writer {
                                                                 size_t num_logtypes, const encoded_variable_t* vars, size_t num_vars,
                                                                 std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids);
+        static void append_logtype_and_var_ids_to_segment_sets (ordered_json& object, const LogTypeDictionaryWriter &logtype_dict,
+                                                                const encoded_variable_t *vars, size_t num_vars, size_t& var_ix,
+                                                                std::unordered_set<logtype_dictionary_id_t> &segment_logtype_ids,
+                                                                std::unordered_set<variable_dictionary_id_t> &segment_var_ids);
+        static void append_jsontype_and_var_ids_to_segment_sets (const JsonTypeDictionaryWriter& jsontype_dict, const LogTypeDictionaryWriter& logtype_dict,
+                                                                 const jsontype_dictionary_id_t* jsontype_ids, size_t num_jsontypes,
+                                                                 const encoded_variable_t* vars, size_t num_vars,
+                                                                 std::unordered_set<jsontype_dictionary_id_t>& segment_json_type_ids,
+                                                                 std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids);
 
 
         void increment_num_uncompressed_bytes (size_t num_bytes);
@@ -196,6 +215,8 @@ namespace streaming_archive { namespace writer {
         SegmentationState m_segmentation_state;
 
     private:
+        FileType m_type;
+
         // Variables
         // Metadata
         boost::uuids::uuid m_id;
