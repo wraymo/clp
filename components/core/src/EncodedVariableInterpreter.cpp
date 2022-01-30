@@ -6,6 +6,8 @@
 
 // spdlog
 #include <spdlog/spdlog.h>
+#include <arrow/io/file.h>
+#include <parquet/stream_reader.h>
 
 // Project headers
 #include "Defs.h"
@@ -14,6 +16,14 @@
 using std::string;
 using std::unordered_set;
 using std::vector;
+
+std::shared_ptr<parquet::schema::GroupNode> GetSchema() {
+    parquet::schema::NodeVector fields;
+
+    fields.push_back(parquet::schema::PrimitiveNode::Make(
+            "string_field", parquet::Repetition::OPTIONAL, parquet::Type::BYTE_ARRAY,
+            parquet::ConvertedType::UTF8));
+}
 
 // Constants
 // 1 sign + LogTypeDictionaryEntry::cMaxDigitsInRepresentableDoubleVar + 1 decimal point
@@ -181,21 +191,21 @@ void EncodedVariableInterpreter::encode_json_object_and_add_to_dictionary (order
             encoded_variable_t encoded_var;
             if (i.value().is_string()) {
                 string str = i.value().get<string>();
-                if (str.find(' ') == string::npos) {
-                    variable_dictionary_id_t id;
-                    var_dict.add_occurrence(str, id);
-                    encoded_var = encode_var_dict_id(id);
-                    encoded_vars.push_back(encoded_var);
-
-                    JsonTypeDictionaryEntry::add_string_var(i.value());
-                } else {
+//                if (str.find(' ') == string::npos) {
+//                    variable_dictionary_id_t id;
+//                    var_dict.add_occurrence(str, id);
+//                    encoded_var = encode_var_dict_id(id);
+//                    encoded_vars.push_back(encoded_var);
+//
+//                    JsonTypeDictionaryEntry::add_string_var(i.value());
+//                } else {
                     logtype_dictionary_id_t logtype_id;
                     std::unique_ptr<LogTypeDictionaryEntry> logtype_dict_entry = std::make_unique<LogTypeDictionaryEntry>();
 
                     encode_and_add_to_dictionary(str, *logtype_dict_entry, var_dict, encoded_vars);
                     logtype_dict.add_occurrence(logtype_dict_entry, logtype_id);
                     JsonTypeDictionaryEntry::add_logtype(i.value(), logtype_id);
-                }
+//                }
             } else if (i.value().is_number_float()) {
                 uint8_t num_integer_digits;
                 uint8_t num_fractional_digits;

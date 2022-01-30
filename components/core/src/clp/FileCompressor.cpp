@@ -85,6 +85,13 @@ static void write_json_message_to_encoded_file (ParsedMessage& msg, streaming_ar
     archive.write_json_msg(*file, msg.get_ts(), msg.get_json_content(), msg.get_orig_num_bytes());
 }
 
+static void write_message_to_encoded_file (const ParsedMessage& msg, ParquetWriter& parquet_writer) {
+
+}
+
+static void write_json_message_to_encoded_file (ParsedMessage& msg, ParquetWriter& parquet_writer) {
+
+}
 
 namespace clp {
     bool FileCompressor::compress_file (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,
@@ -112,6 +119,28 @@ namespace clp {
             {
                 succeeded = false;
             }
+        }
+
+        m_file_reader.close();
+
+        return succeeded;
+    }
+
+    bool FileCompressor::compress_file(const FileToCompress &file_to_compress, ParquetWriter &parquet_writer) {
+        m_file_reader.open(file_to_compress.get_path());
+
+        // Check that file is UTF-8 encoded
+        auto error_code = m_file_reader.try_read(m_utf8_validation_buf, cUtf8ValidationBufCapacity, m_utf8_validation_buf_length);
+        if (ErrorCode_Success != error_code) {
+            if (ErrorCode_EndOfFile != error_code) {
+                SPDLOG_ERROR("Failed to read {}, errno={}", file_to_compress.get_path().c_str(), errno);
+                return false;
+            }
+        }
+
+        bool succeeded = true;
+        if (is_utf8_sequence(m_utf8_validation_buf_length, m_utf8_validation_buf)) {
+            parse_and_encode(file_to_compress.get_path_for_compression(), file_to_compress.get_group_id(), parquet_writer, m_file_reader);
         }
 
         m_file_reader.close();
@@ -176,6 +205,36 @@ namespace clp {
         }
 
         close_file_and_mark_ready_for_segment(archive_writer, file);
+    }
+
+    void FileCompressor::parese_and_encode (const string& path_for_compression, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader) {
+        m_parsed_message.clear();
+
+        // Open compressed file
+        auto* file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, m_uuid_generator(), 0);
+
+        size_t buf_pos = 0;
+        if (m_message_parser.parse_next_json_message(reader, m_utf8_validation_buf_length, m_utf8_validation_buf,buf_pos, m_parsed_message)) {
+            file->set_type(streaming_archive::writer::File::FileType::JSON);
+
+            do {
+                write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
+            } while (m_message_parser.parse_next_json_message(reader, m_utf8_validation_buf_length, m_utf8_validation_buf, buf_pos, m_parsed_message));
+
+            while (m_message_parser.parse_next_json_message(reader, m_parsed_message)) {
+                write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
+            }
+        } else {
+            // Parse content from UTF-8 validation buffer
+            while (m_message_parser.parse_next_message(false, m_utf8_validation_buf_length, m_utf8_validation_buf, buf_pos, m_parsed_message)) {
+                write_message_to_encoded_file(m_parsed_message, archive_writer, file);
+            }
+
+            // Parse remaining content from file
+            while (m_message_parser.parse_next_message(true, reader, m_parsed_message)) {
+                write_message_to_encoded_file(m_parsed_message, archive_writer, file);
+            }
+        }
     }
 
     bool FileCompressor::try_compressing_as_archive (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,

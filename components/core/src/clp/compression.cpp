@@ -16,6 +16,7 @@
 // Project headers
 #include "../GlobalMySQLMetadataDB.hpp"
 #include "../GlobalSQLiteMetadataDB.hpp"
+#include "../ParquetWriter.hpp"
 #include "../streaming_archive/writer/Archive.hpp"
 #include "../Utils.hpp"
 #include "FileCompressor.hpp"
@@ -51,6 +52,67 @@ namespace clp {
 
     static bool file_lt_last_write_time_comparator (const FileToCompress& lhs, const FileToCompress& rhs) {
         return boost::filesystem::last_write_time(lhs.get_path()) < boost::filesystem::last_write_time(rhs.get_path());
+    }
+
+    bool compress_to_parquet_file (CommandLineArguments& command_line_args, vector<FileToCompress>& files_to_compress,
+                                   const vector<string>& empty_directory_paths, vector<FileToCompress>& grouped_files_to_compress,
+                                   size_t target_encoded_file_size) {
+        auto output_dir = boost::filesystem::path(command_line_args.get_output_dir());
+
+        // Create output directory in case it doesn't exist
+        auto error_code = create_directory(output_dir.parent_path().string(), 0700, true);
+        if (ErrorCode_Success != error_code) {
+            SPDLOG_ERROR("Failed to create {} - {}", output_dir.parent_path().c_str(), strerror(errno));
+            return false;
+        }
+
+        size_t num_files_compressed = 0;
+        size_t num_files_to_compress = 0;
+        if (command_line_args.show_progress()) {
+            num_files_to_compress = files_to_compress.size() + grouped_files_to_compress.size();
+        }
+
+        auto uuid_generator = boost::uuids::random_generator();
+
+        bool all_files_compressed_successfully = true;
+        FileCompressor file_compressor(uuid_generator);
+
+        auto id = uuid_generator();
+        auto creator_id = uuid_generator();
+        int compression_level = command_line_args.get_compression_level();
+
+        ParquetWriter parquet_writer;
+        parquet_writer.init(id, creator_id, compression_level, output_dir);
+
+        sort(files_to_compress.begin(), files_to_compress.end(), file_lt_last_write_time_comparator);
+        for (auto rit = files_to_compress.crbegin(); rit != files_to_compress.crend(); ++rit) {
+
+            if (false == file_compressor.compress_file(archive_user_config, target_encoded_file_size, *rit, archive_writer)) {
+                all_files_compressed_successfully = false;
+            }
+            if (command_line_args.show_progress()) {
+                ++num_files_compressed;
+                cerr << "Compressed " << num_files_compressed << '/' << num_files_to_compress << " files" << '\r';
+            }
+        }
+
+        // Sort files by group ID to avoid spreading groups over multiple segments
+        sort(grouped_files_to_compress.begin(), grouped_files_to_compress.end(), file_group_id_comparator);
+        // Compress grouped files
+        for (const auto& file_to_compress : grouped_files_to_compress) {
+
+            if (false == file_compressor.compress_file(target_data_size_of_dictionaries, archive_user_config, target_encoded_file_size, file_to_compress,
+                                                       archive_writer))
+            {
+                all_files_compressed_successfully = false;
+            }
+            if (command_line_args.show_progress()) {
+                ++num_files_compressed;
+                cerr << "Compressed " << num_files_compressed << '/' << num_files_to_compress << " files" << '\r';
+            }
+        }
+
+        return all_files_compressed_successfully;
     }
 
     bool compress (CommandLineArguments& command_line_args, vector<FileToCompress>& files_to_compress, const vector<string>& empty_directory_paths,

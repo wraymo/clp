@@ -91,11 +91,11 @@ static void print_result_binary (const string& orig_file_path, const Message& co
  */
 static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path);
 
-static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path, const std::string& type) {
+static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path) {
     if (file_path.empty()) {
-        return global_metadata_db.get_archive_iterator(type);
+        return global_metadata_db.get_archive_iterator();
     } else {
-        return global_metadata_db.get_archive_iterator_for_file_path(file_path, type);
+        return global_metadata_db.get_archive_iterator_for_file_path(file_path);
     }
 }
 
@@ -386,7 +386,7 @@ int main (int argc, const char* argv[]) {
     if (command_line_args.json_search()) {
         search_type = "json";
     } else {
-        search_type = "text"
+        search_type = "text";
     }
 
     string archive_id;

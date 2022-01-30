@@ -9,6 +9,7 @@
 #include "../LibarchiveFileReader.hpp"
 #include "../LibarchiveReader.hpp"
 #include "../MessageParser.hpp"
+#include "../ParquetWriter.hpp"
 #include "../ParsedMessage.hpp"
 #include "../streaming_archive/writer/Archive.hpp"
 #include "FileToCompress.hpp"
@@ -37,6 +38,8 @@ namespace clp {
         bool compress_file (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,
                             size_t target_encoded_file_size, const FileToCompress& file_to_compress, streaming_archive::writer::Archive& archive_writer);
 
+        bool compress_file (const FileToCompress& file_to_compress, ParquetWriter& parquet_writer);
+
     private:
         // Methods
         /**
@@ -52,6 +55,8 @@ namespace clp {
         void parse_and_encode (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,
                                size_t target_encoded_file_size, const std::string& path_for_compression, group_id_t group_id,
                                streaming_archive::writer::Archive& archive_writer, ReaderInterface& reader);
+
+        void parese_and_encode (const std::string& path_for_compression, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader);
 
         /**
          * Tries to compress the given file as if it were a generic archive_writer

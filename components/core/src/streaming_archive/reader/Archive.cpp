@@ -142,6 +142,9 @@ namespace streaming_archive { namespace reader {
         PROFILER_FRAGMENTED_MEASUREMENT_START(VarDictRead)
         m_var_dictionary.read_new_entries();
         PROFILER_FRAGMENTED_MEASUREMENT_STOP(VarDictRead)
+        m_logtype_dictionary.print_entries("logtype_1");
+        m_jsontype_dictionary.print_entries("jsontype_1");
+        m_var_dictionary.print_entries("var_1");
     }
 
     ErrorCode Archive::open_file (File& file, MetadataDB::FileIterator& file_metadata_ix, bool read_ahead) {

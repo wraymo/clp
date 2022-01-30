@@ -56,6 +56,20 @@ else()
     message(FATAL_ERROR "Could not find ${CLP_LIBS_STRING} libraries for Boost")
 endif()
 
+find_package(Arrow REQUIRED)
+if(Arrow_FOUND)
+    message(STATUS "Found Arrow ${Arrow_VERSION}")
+else()
+    message(FATAL_ERROR "Could not find library Arrow")
+endif()
+
+find_package(Parquet REQUIRED PATHS ${Arrow_DIR} NO_DEFAULT_PATH)
+if(Parquet_FOUND)
+    message(STATUS "Found Parquet ${Parquet_VERSION}")
+else()
+    message(FATAL_ERROR "Could not find library Parquet")
+endif()
+
 # Find and setup fmt
 # NOTE:
 # - We only try to link to the static library
@@ -190,6 +204,10 @@ set(SOURCE_FILES_clp
         src/MySQLPreparedStatement.hpp
         src/PageAllocatedVector.cpp
         src/PageAllocatedVector.hpp
+        src/ParquetReader.cpp
+        src/ParquetReader.hpp
+        src/ParquetWriter.cpp
+        src/ParquetWriter.hpp
         src/ParsedMessage.cpp
         src/ParsedMessage.hpp
         src/Profiler.cpp
@@ -271,6 +289,8 @@ target_link_libraries(clp
         MariaDBClient::MariaDBClient
         yaml-cpp::yaml-cpp
         ZStd::ZStd
+        arrow_shared
+        parquet_shared
         )
 target_compile_features(clp
         PRIVATE cxx_std_14
@@ -306,10 +326,18 @@ set(SOURCE_FILES_clg
         src/GlobalSQLiteMetadataDB.hpp
         src/Grep.cpp
         src/Grep.hpp
+        src/JsonTypeDictionaryEntry.cpp
+        src/JsonTypeDictionaryEntry.hpp
+        src/JsonTypeDictionaryReader.cpp
+        src/JsonTypeDictionaryReader.hpp
+        src/JsonTypeDictionaryWriter.cpp
+        src/JsonTypeDictionaryWriter.hpp
         src/LogTypeDictionaryEntry.cpp
         src/LogTypeDictionaryEntry.hpp
         src/LogTypeDictionaryReader.cpp
         src/LogTypeDictionaryReader.hpp
+        src/LogTypeDictionaryWriter.cpp
+        src/LogTypeDictionaryWriter.hpp
         src/MySQLDB.cpp
         src/MySQLDB.hpp
         src/MySQLParamBindings.cpp
@@ -318,6 +346,8 @@ set(SOURCE_FILES_clg
         src/MySQLPreparedStatement.hpp
         src/PageAllocatedVector.cpp
         src/PageAllocatedVector.hpp
+        src/ParquetReader.cpp
+        src/ParquetReader.hpp
         src/ParsedMessage.cpp
         src/ParsedMessage.hpp
         src/Profiler.cpp

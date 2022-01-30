@@ -91,6 +91,7 @@ namespace streaming_archive { namespace writer {
         m_is_written_out = true;
         m_timestamps.clear();
         m_logtypes.clear();
+        m_jsontypes.clear();
         m_variables.clear();
     }
 

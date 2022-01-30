@@ -4,6 +4,7 @@
 // C++ standard libraries
 #include <string>
 #include <vector>
+#include <fstream>
 
 // Boost libraries
 #include <boost/algorithm/string.hpp>
@@ -12,6 +13,7 @@
 #include "dictionary_utils.hpp"
 #include "DictionaryEntry.hpp"
 #include "FileReader.hpp"
+#include "ParquetReader.hpp"
 #include "Profiler.hpp"
 #include "streaming_compression/zstd/Decompressor.hpp"
 #include "Utils.hpp"
