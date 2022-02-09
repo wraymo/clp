@@ -86,11 +86,11 @@ static void write_json_message_to_encoded_file (ParsedMessage& msg, streaming_ar
 }
 
 static void write_message_to_encoded_file (const ParsedMessage& msg, ParquetWriter& parquet_writer) {
-
+    parquet_writer.write_msg(msg.get_ts(), msg.get_content());
 }
 
 static void write_json_message_to_encoded_file (ParsedMessage& msg, ParquetWriter& parquet_writer) {
-
+    parquet_writer.write_json_msg(msg.get_ts(), msg.get_json_content());
 }
 
 namespace clp {
@@ -137,15 +137,13 @@ namespace clp {
                 return false;
             }
         }
-
-        bool succeeded = true;
         if (is_utf8_sequence(m_utf8_validation_buf_length, m_utf8_validation_buf)) {
-            parse_and_encode(file_to_compress.get_path_for_compression(), file_to_compress.get_group_id(), parquet_writer, m_file_reader);
+            parse_and_encode(file_to_compress.get_path(), file_to_compress.get_group_id(), parquet_writer, m_file_reader);
         }
 
         m_file_reader.close();
 
-        return succeeded;
+        return true;
     }
 
     void FileCompressor::parse_and_encode (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,
@@ -207,34 +205,35 @@ namespace clp {
         close_file_and_mark_ready_for_segment(archive_writer, file);
     }
 
-    void FileCompressor::parese_and_encode (const string& path_for_compression, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader) {
+    void FileCompressor::parse_and_encode (const string& path, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader) {
         m_parsed_message.clear();
 
-        // Open compressed file
-        auto* file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, m_uuid_generator(), 0);
+        auto input_file = parquet_writer.create_and_open_input_file(path);
 
         size_t buf_pos = 0;
         if (m_message_parser.parse_next_json_message(reader, m_utf8_validation_buf_length, m_utf8_validation_buf,buf_pos, m_parsed_message)) {
-            file->set_type(streaming_archive::writer::File::FileType::JSON);
+            input_file->set_type(InputFile::FileType::JSON);
 
             do {
-                write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
+                write_json_message_to_encoded_file(m_parsed_message, parquet_writer);
             } while (m_message_parser.parse_next_json_message(reader, m_utf8_validation_buf_length, m_utf8_validation_buf, buf_pos, m_parsed_message));
 
             while (m_message_parser.parse_next_json_message(reader, m_parsed_message)) {
-                write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
+                write_json_message_to_encoded_file(m_parsed_message, parquet_writer);
             }
         } else {
-            // Parse content from UTF-8 validation buffer
+            input_file->set_type(InputFile::FileType::TEXT);
+
             while (m_message_parser.parse_next_message(false, m_utf8_validation_buf_length, m_utf8_validation_buf, buf_pos, m_parsed_message)) {
-                write_message_to_encoded_file(m_parsed_message, archive_writer, file);
+                write_message_to_encoded_file(m_parsed_message, parquet_writer);
             }
 
             // Parse remaining content from file
             while (m_message_parser.parse_next_message(true, reader, m_parsed_message)) {
-                write_message_to_encoded_file(m_parsed_message, archive_writer, file);
+                write_message_to_encoded_file(m_parsed_message, parquet_writer);
             }
         }
+        parquet_writer.close_input_file(input_file);
     }
 
     bool FileCompressor::try_compressing_as_archive (size_t target_data_size_of_dicts, streaming_archive::writer::Archive::UserConfig& archive_user_config,

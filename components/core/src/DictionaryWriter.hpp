@@ -47,6 +47,7 @@ public:
      * @param segment_index_path
      */
     void open (const std::string& dictionary_path, const std::string& segment_index_path, DictionaryIdType max_id);
+    void open (DictionaryIdType max_id);
     /**
      * Closes the dictionary
      */
@@ -82,6 +83,9 @@ public:
      * @return
      */
     size_t get_data_size () const { return m_data_size; }
+
+    std::vector<EntryType*> get_uncommitted_entries () { return m_uncommitted_entries; }
+    void reset_entries () { m_uncommitted_entries.clear(); }
 
 protected:
     // Types
@@ -142,6 +146,18 @@ void DictionaryWriter<DictionaryIdType, EntryType>::open (const std::string& dic
 
     m_data_size = 0;
 
+    m_is_open = true;
+}
+
+template <typename DictionaryIdType, typename EntryType>
+void DictionaryWriter<DictionaryIdType, EntryType>::open (DictionaryIdType max_id) {
+    if (m_is_open) {
+        throw OperationFailed(ErrorCode_NotReady, __FILENAME__, __LINE__);
+    }
+
+    m_next_id = 0;
+    m_max_id = max_id;
+    m_data_size = 0;
     m_is_open = true;
 }
 

@@ -82,12 +82,12 @@ namespace clp {
         int compression_level = command_line_args.get_compression_level();
 
         ParquetWriter parquet_writer;
-        parquet_writer.init(id, creator_id, compression_level, output_dir);
+        parquet_writer.open(id, creator_id, compression_level, output_dir);
 
         sort(files_to_compress.begin(), files_to_compress.end(), file_lt_last_write_time_comparator);
         for (auto rit = files_to_compress.crbegin(); rit != files_to_compress.crend(); ++rit) {
 
-            if (false == file_compressor.compress_file(archive_user_config, target_encoded_file_size, *rit, archive_writer)) {
+            if (!file_compressor.compress_file(*rit, parquet_writer)) {
                 all_files_compressed_successfully = false;
             }
             if (command_line_args.show_progress()) {
@@ -101,8 +101,7 @@ namespace clp {
         // Compress grouped files
         for (const auto& file_to_compress : grouped_files_to_compress) {
 
-            if (false == file_compressor.compress_file(target_data_size_of_dictionaries, archive_user_config, target_encoded_file_size, file_to_compress,
-                                                       archive_writer))
+            if (!file_compressor.compress_file(file_to_compress, parquet_writer))
             {
                 all_files_compressed_successfully = false;
             }
@@ -111,6 +110,8 @@ namespace clp {
                 cerr << "Compressed " << num_files_compressed << '/' << num_files_to_compress << " files" << '\r';
             }
         }
+
+        parquet_writer.close();
 
         return all_files_compressed_successfully;
     }

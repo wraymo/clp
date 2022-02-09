@@ -9,6 +9,8 @@
 /**
  * Class for reading variable dictionaries from disk and performing operations on them
  */
-class VariableDictionaryReader : public DictionaryReader<variable_dictionary_id_t , VariableDictionaryEntry> {};
+class VariableDictionaryReader : public DictionaryReader<variable_dictionary_id_t , VariableDictionaryEntry> {
+
+};
 
 #endif // VARIABLEDICTIONARYREADER_HPP

@@ -135,6 +135,8 @@ public:
     void set_id (logtype_dictionary_id_t id) { m_id = id; }
     void set_verbosity (LogVerbosity verbosity) { m_verbosity = verbosity; }
 
+    LogVerbosity get_verbosity () { return m_verbosity; }
+
     void clear ();
 
     /**
@@ -155,13 +157,16 @@ public:
      */
     void read_from_file (streaming_compression::zstd::Decompressor& decompressor);
 
-private:
     // Methods
     /**
      * Escapes any variable delimiters that don't correspond to the positions of variables in the logtype entry's value
      * @param escaped_logtype_value
      */
     void get_value_with_unfounded_variables_escaped (std::string& escaped_logtype_value) const;
+    // TODO(Rui): may change to private
+
+private:
+
 
     // Variables
     LogVerbosity m_verbosity;

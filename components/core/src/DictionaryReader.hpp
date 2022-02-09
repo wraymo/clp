@@ -13,7 +13,6 @@
 #include "dictionary_utils.hpp"
 #include "DictionaryEntry.hpp"
 #include "FileReader.hpp"
-#include "ParquetReader.hpp"
 #include "Profiler.hpp"
 #include "streaming_compression/zstd/Decompressor.hpp"
 #include "Utils.hpp"

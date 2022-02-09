@@ -27,6 +27,10 @@ namespace clp {
                    const std::vector<std::string>& empty_directory_paths, std::vector<FileToCompress>& grouped_files_to_compress,
                    size_t target_encoded_file_size);
 
+    bool compress_to_parquet_file (CommandLineArguments& command_line_args, std::vector<FileToCompress>& files_to_compress,
+                                   const std::vector<std::string>& empty_directory_paths, std::vector<FileToCompress>& grouped_files_to_compress,
+                                   size_t target_encoded_file_size);
+
     /**
      * Reads a list of grouped files and a list of their IDs
      * @param path_prefix_to_remove

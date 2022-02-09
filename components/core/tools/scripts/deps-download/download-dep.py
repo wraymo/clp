@@ -10,7 +10,8 @@ import sys
 import uuid
 import urllib.parse
 import urllib.request
-
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 # Setup logging
 # Create logger
 logger = logging.getLogger()

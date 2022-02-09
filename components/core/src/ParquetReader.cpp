@@ -1,4 +1,6 @@
-//
-// Created by Rui on 2022/1/28.
-//
+#include "ParquetReader.hpp"
+
+void ParquetReader::open(const boost::filesystem::path& path) {
+
+}
 

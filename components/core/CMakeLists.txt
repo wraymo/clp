@@ -178,6 +178,8 @@ set(SOURCE_FILES_clp
         src/GlobalMySQLMetadataDB.hpp
         src/GlobalSQLiteMetadataDB.cpp
         src/GlobalSQLiteMetadataDB.hpp
+        src/InputFile.cpp
+        src/InputFile.hpp
         src/JsonTypeDictionaryEntry.cpp
         src/JsonTypeDictionaryEntry.hpp
         src/JsonTypeDictionaryReader.cpp
@@ -419,6 +421,8 @@ target_link_libraries(clg
         ${sqlite_LIBRARY_DEPENDENCIES}
         yaml-cpp::yaml-cpp
         ZStd::ZStd
+        arrow_shared
+        parquet_shared
         )
 target_compile_features(clg
         PRIVATE cxx_std_14
@@ -521,6 +525,8 @@ target_link_libraries(clo
         spdlog::spdlog
         ${sqlite_LIBRARY_DEPENDENCIES}
         ZStd::ZStd
+        arrow_shared
+        parquet_shared
         )
 target_compile_features(clo
         PRIVATE cxx_std_14

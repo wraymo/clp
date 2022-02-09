@@ -7,7 +7,7 @@
 #include "LogTypeDictionaryEntry.hpp"
 
 /**
- * Class for reading jsontype dictionaries from disk and performing operations on them
+ * Class for reading logtype dictionaries from disk and performing operations on them
  */
 class LogTypeDictionaryReader : public DictionaryReader<logtype_dictionary_id_t, LogTypeDictionaryEntry> {
 

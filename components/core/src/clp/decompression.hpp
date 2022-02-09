@@ -16,6 +16,7 @@ namespace clp {
      * @return true if decompression was successful, false otherwise
      */
     bool decompress (CommandLineArguments& command_line_args, const std::unordered_set<std::string>& files_to_decompress);
+    bool decompress_parquet_file (CommandLineArguments& command_line_args, const std::unordered_set<std::string>& file_to_decompress);
 }
 
 #endif // CLP_DECOMPRESSION_HPP

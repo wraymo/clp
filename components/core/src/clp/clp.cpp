@@ -82,8 +82,10 @@ int main (int argc, const char* argv[]) {
 
         bool compression_successful;
         try {
-            compression_successful = compress(command_line_args, files_to_compress, empty_directory_paths, grouped_files_to_compress,
-                                              command_line_args.get_target_encoded_file_size());
+//            compression_successful = compress(command_line_args, files_to_compress, empty_directory_paths, grouped_files_to_compress,
+//                                              command_line_args.get_target_encoded_file_size());
+            compression_successful = compress_to_parquet_file(command_line_args, files_to_compress, empty_directory_paths, grouped_files_to_compress,
+                                                              command_line_args.get_target_encoded_file_size());
         } catch (TraceableException& e) {
             ErrorCode error_code = e.get_error_code();
             if (ErrorCode_errno == error_code) {

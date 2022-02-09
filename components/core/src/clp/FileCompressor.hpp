@@ -56,7 +56,7 @@ namespace clp {
                                size_t target_encoded_file_size, const std::string& path_for_compression, group_id_t group_id,
                                streaming_archive::writer::Archive& archive_writer, ReaderInterface& reader);
 
-        void parese_and_encode (const std::string& path_for_compression, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader);
+        void parse_and_encode (const std::string& path_for_compression, group_id_t group_id, ParquetWriter& parquet_writer, ReaderInterface& reader);
 
         /**
          * Tries to compress the given file as if it were a generic archive_writer
