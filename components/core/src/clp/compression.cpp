@@ -114,6 +114,7 @@ namespace clp {
             num_files_to_compress = files_to_compress.size() + grouped_files_to_compress.size();
         }
         sort(files_to_compress.begin(), files_to_compress.end(), file_lt_last_write_time_comparator);
+
         for (auto rit = files_to_compress.crbegin(); rit != files_to_compress.crend(); ++rit) {
             if (archive_writer.get_data_size_of_dictionaries() >= target_data_size_of_dictionaries) {
                 split_archive(archive_user_config, archive_writer);

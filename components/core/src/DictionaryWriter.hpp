@@ -83,6 +83,8 @@ public:
      */
     size_t get_data_size () const { return m_data_size; }
 
+    std::vector<EntryType*> get_uncommitted_entries () const { return m_uncommitted_entries; }
+
 protected:
     // Types
     typedef std::unordered_map<std::string, EntryType*> value_to_entry_t;

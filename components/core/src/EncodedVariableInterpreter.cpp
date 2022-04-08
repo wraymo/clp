@@ -192,19 +192,33 @@ void EncodedVariableInterpreter::encode_json_object_and_add_to_dictionary (order
                     logtype_dictionary_id_t logtype_id;
                     std::unique_ptr<LogTypeDictionaryEntry> logtype_dict_entry = std::make_unique<LogTypeDictionaryEntry>();
 
+                    // vector<encoded_variable_t> temp_encoded_vars;
+                    // encode_and_add_to_dictionary(str, *logtype_dict_entry, var_dict, temp_encoded_vars);
                     encode_and_add_to_dictionary(str, *logtype_dict_entry, var_dict, encoded_vars);
                     logtype_dict.add_occurrence(logtype_dict_entry, logtype_id);
+                    // encoded_vars.push_back(logtype_id);
+                    // for (auto i: temp_encoded_vars)
+                    //     encoded_vars.push_back(i);
                     JsonTypeDictionaryEntry::add_logtype(i.value(), logtype_id);
+                    // JsonTypeDictionaryEntry::add_logtype(i.value());
                 }
             } else if (i.value().is_number_float()) {
                 uint8_t num_integer_digits;
                 uint8_t num_fractional_digits;
 
+                // TODO: How to handle double that can not be encoded
                 double value = i.value().get<double>();
-                convert_string_to_representable_double_var(std::to_string(value), num_integer_digits, num_fractional_digits, encoded_var);
+                if (convert_string_to_representable_double_var(std::to_string(value), num_integer_digits, num_fractional_digits, encoded_var)) {
+                    JsonTypeDictionaryEntry::add_double_var(i.value(), num_integer_digits, num_fractional_digits);
+                    encoded_vars.push_back(encoded_var);
+                } else {
+                    variable_dictionary_id_t id;
+                    var_dict.add_occurrence(std::to_string(value), id);
+                    encoded_var = encode_var_dict_id(id);
+                    encoded_vars.push_back(encoded_var);
 
-                JsonTypeDictionaryEntry::add_double_var(i.value(), num_integer_digits, num_fractional_digits);
-                encoded_vars.push_back(encoded_var);
+                    JsonTypeDictionaryEntry::add_string_var(i.value());
+                }
             } else if (i.value().is_number_integer()) {
                 encoded_var = i.value().get<encoded_variable_t>();
                 JsonTypeDictionaryEntry::add_non_double_var(i.value());

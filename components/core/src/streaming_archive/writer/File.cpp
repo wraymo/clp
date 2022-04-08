@@ -109,6 +109,7 @@ namespace streaming_archive { namespace writer {
                     ++var_ix;
                 } else if (JsonTypeDictionaryEntry::is_logtype(str)) {
                     logtype_dictionary_id_t logtype_id = JsonTypeDictionaryEntry::get_logtype_id(str);
+                    // logtype_dictionary_id_t logtype_id = vars[var_ix++];
 
                     auto logtype_dict_entry_ptr = logtype_dict.get_entry(logtype_id);
                     auto& logtype_dict_entry = *logtype_dict_entry_ptr;

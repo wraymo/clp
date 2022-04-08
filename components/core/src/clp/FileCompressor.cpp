@@ -135,8 +135,10 @@ namespace clp {
              do {
                 if (archive_writer.get_data_size_of_dictionaries() >= target_data_size_of_dicts) {
                     split_file_and_archive(archive_user_config, path_for_compression, group_id, m_parsed_message.get_ts_patt(), archive_writer, file);
+                    file->set_type(streaming_archive::writer::File::FileType::JSON);
                 } else if (file->get_encoded_size_in_bytes() >= target_encoded_file_size) {
                     split_file(path_for_compression, group_id, m_parsed_message.get_ts_patt(), archive_writer, file);
+                    file->set_type(streaming_archive::writer::File::FileType::JSON);
                 }
 
                 write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
@@ -145,12 +147,15 @@ namespace clp {
             while (m_message_parser.parse_next_json_message(reader, m_parsed_message)) {
                 if (archive_writer.get_data_size_of_dictionaries() >= target_data_size_of_dicts) {
                     split_file_and_archive(archive_user_config, path_for_compression, group_id, m_parsed_message.get_ts_patt(), archive_writer, file);
+                    file->set_type(streaming_archive::writer::File::FileType::JSON);
                 } else if (file->get_encoded_size_in_bytes() >= target_encoded_file_size) {
                     split_file(path_for_compression, group_id, m_parsed_message.get_ts_patt(), archive_writer, file);
+                    file->set_type(streaming_archive::writer::File::FileType::JSON);
                 }
 
                 write_json_message_to_encoded_file(m_parsed_message, archive_writer, file);
             }
+            int a = 0;
         } else {
             // Parse content from UTF-8 validation buffer
             while (m_message_parser.parse_next_message(false, m_utf8_validation_buf_length, m_utf8_validation_buf, buf_pos, m_parsed_message)) {

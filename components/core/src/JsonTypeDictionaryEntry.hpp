@@ -57,6 +57,7 @@ public:
     JsonTypeDictionaryEntry& operator= (const JsonTypeDictionaryEntry&) = default;
 
     // Methods
+    static void add_logtype(ordered_json& value);
     static void add_logtype (ordered_json& value, logtype_dictionary_id_t& id);
     static void add_string_var (ordered_json& value);
     static void add_non_double_var (ordered_json& value);

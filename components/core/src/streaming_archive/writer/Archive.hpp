@@ -175,7 +175,7 @@ namespace streaming_archive { namespace writer {
         const boost::uuids::uuid& get_id () const { return m_id; }
         const std::string& get_id_as_string () const { return m_id_as_string; }
 
-        size_t get_data_size_of_dictionaries () const { return m_logtype_dict.get_data_size() + m_var_dict.get_data_size(); }
+        size_t get_data_size_of_dictionaries () const { return m_logtype_dict.get_data_size() + m_jsontype_dict.get_data_size() + m_var_dict.get_data_size(); }
 
     private:
         // Types

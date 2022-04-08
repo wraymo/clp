@@ -5,6 +5,7 @@
 
 // C++ libraries
 #include <iostream>
+#include <fstream>
 
 // Boost libraries
 #include <boost/asio.hpp>
@@ -330,6 +331,7 @@ namespace streaming_archive { namespace writer {
 
         // Flush dictionaries
         m_logtype_dict.write_uncommitted_entries_to_disk();
+        m_jsontype_dict.write_uncommitted_entries_to_disk();
         m_var_dict.write_uncommitted_entries_to_disk();
 
         // Persist files with dirty metadata
@@ -495,8 +497,39 @@ namespace streaming_archive { namespace writer {
         #endif
 
         // Flush dictionaries
+        // auto logtype_entries = m_logtype_dict.get_uncommitted_entries();
+        // std::ofstream myfile;
+
+        // if (logtype_entries.size() != 0) {
+        //     myfile.open(m_segments_dir_path + "logtype.entries");
+        //     for (auto entry : logtype_entries)
+        //         myfile << entry->get_value() << std::endl;
+        //     myfile.close();
+        //     std::cout << "Logtype entry number: ";
+        //     std::cout << logtype_entries.size() << std::endl;
+        // }
         m_logtype_dict.write_uncommitted_entries_to_disk();
+
+        // auto jsontype_entries = m_jsontype_dict.get_uncommitted_entries();
+        // if (jsontype_entries.size() != 0) {
+        //     myfile.open(m_segments_dir_path + "jsontype.entries");
+        //     for (auto entry : jsontype_entries)
+        //         myfile << entry->get_value() << std::endl;
+        //     myfile.close();
+        //     std::cout << "Jsontype entry number: ";
+        //     std::cout << jsontype_entries.size() << std::endl;
+        // }
         m_jsontype_dict.write_uncommitted_entries_to_disk();
+
+        // auto variable_entries = m_var_dict.get_uncommitted_entries();
+        // if (variable_entries.size() != 0) {
+        //     myfile.open(m_segments_dir_path + "variable.entries");
+        //     for (auto entry : variable_entries)
+        //         myfile << entry->get_value() << std::endl;
+        //     myfile.close();
+        //     std::cout << "Variable entry number: ";
+        //     std::cout << variable_entries.size() << std::endl;
+        // }
         m_var_dict.write_uncommitted_entries_to_disk();
 
         for (auto file : files) {
@@ -544,7 +577,7 @@ namespace streaming_archive { namespace writer {
     }
 
     size_t Archive::get_stable_size () const {
-        size_t on_disk_size = m_stable_size + m_logtype_dict.get_on_disk_size() + m_var_dict.get_on_disk_size();
+        size_t on_disk_size = m_stable_size + m_logtype_dict.get_on_disk_size() + m_var_dict.get_on_disk_size() + m_jsontype_dict.get_on_disk_size();
 
         // Add size of on-disk files
         for (auto file : m_on_disk_files) {

@@ -13,6 +13,10 @@ void JsonTypeDictionaryEntry::add_logtype(ordered_json& value, logtype_dictionar
     value = new_value;
 }
 
+void JsonTypeDictionaryEntry::add_logtype(ordered_json& value) {
+    value = string(1, (char)Delim::LogType);
+}
+
 void JsonTypeDictionaryEntry::add_string_var(ordered_json& value) {
     value = string(1, (char)Delim::StringVar);
 }
