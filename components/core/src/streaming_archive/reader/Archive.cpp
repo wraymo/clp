@@ -117,6 +117,12 @@ namespace streaming_archive { namespace reader {
         m_segments_dir_path += '/';
         m_segment_manager.open(m_segments_dir_path);
 
+        m_column_segments_dir_path = m_path;
+        m_column_segments_dir_path += '/';
+        m_column_segments_dir_path += cColumnSegmentsDirname;
+        m_column_segments_dir_path += '/';
+        m_column_segment_manager.open(m_column_segments_dir_path);
+
         // Open segment list
         string segment_list_path = m_segments_dir_path;
         segment_list_path += cSegmentListFilename;

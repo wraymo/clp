@@ -126,12 +126,13 @@ namespace streaming_archive { namespace reader {
         std::string m_path;
         std::string m_logs_dir_path;
         std::string m_segments_dir_path;
+        std::string m_column_segments_dir_path;
         LogTypeDictionaryReader m_logtype_dictionary;
         JsonTypeDictionaryReader m_jsontype_dictionary;
         VariableDictionaryReader m_var_dictionary;
 
         SegmentManager m_segment_manager;
-
+        SegmentManager m_column_segment_manager;
         MetadataDB m_metadata_db;
     };
 } }

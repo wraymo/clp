@@ -27,7 +27,11 @@ public:
     ParsedMessage& operator= (const ParsedMessage&) = delete;
 
     // Destructors
-    ~ParsedMessage () = default;
+    ~ParsedMessage () {
+        for (auto i: m_extracted_values) 
+            if (i != nullptr)
+                delete i;
+    }
 
     // Methods
     void clear ();
@@ -52,10 +56,14 @@ public:
     bool has_ts_patt_changed () const { return m_ts_patt_changed; }
     bool is_empty () const { return false == m_is_set; }
 
+    void add_extracted_value (ordered_json* value) { m_extracted_values.push_back(value); }
+    std::vector<ordered_json*> get_extracted_values () const { return m_extracted_values; }
+
 private:
     // Variables
     std::string m_content;
     ordered_json m_json_content;
+    std::vector<ordered_json*> m_extracted_values; 
     MessageType m_message_type;
     const TimestampPattern* m_ts_patt;
     bool m_ts_patt_changed;

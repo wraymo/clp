@@ -75,8 +75,22 @@ namespace streaming_archive { namespace writer {
         increment_num_uncompressed_bytes(num_uncompressed_bytes);
     }
 
+    void OnDiskFile::write_encoded_json_msg (const epochtime_t timestamp, const logtype_dictionary_id_t logtype_id, const vector<encoded_variable_t>& encoded_vars,
+            size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values)
+    {
+        m_timestamps_file_writer.write_numeric_value(timestamp);
+        m_logtype_ids_file_writer.write_numeric_value(logtype_id);
+        for (const auto encoded_var : encoded_vars) {
+            m_variables_file_writer.write_numeric_value(encoded_var);
+        }
+        increment_num_messages_and_variables(1, encoded_vars.size());
+
+        set_last_message_timestamp(timestamp);
+        increment_num_uncompressed_bytes(num_uncompressed_bytes);
+    }
+
     void OnDiskFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                        unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                        Segment& column_segment, unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                         unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids, unordered_set<variable_dictionary_id_t>& segment_var_ids)
     {
         if (m_is_open) {

@@ -96,6 +96,7 @@ namespace clp {
         archive_user_config.output_dir = command_line_args.get_output_dir();
         archive_user_config.global_metadata_db = global_metadata_db.get();
         archive_user_config.print_archive_stats_progress = command_line_args.print_archive_stats_progress();
+        archive_user_config.preparsed_keys = command_line_args.get_preparsed_keys();
 
         // Open archive
         streaming_archive::writer::Archive archive_writer;

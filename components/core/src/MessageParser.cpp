@@ -85,7 +85,7 @@ bool MessageParser::parse_next_message (bool drain_source, ReaderInterface& read
 }
 
 bool MessageParser::parse_next_json_message(ReaderInterface &reader, size_t buffer_length, const char* buffer, size_t& buf_pos,
-                                            ParsedMessage& message) {
+                                            ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys) {
     if (buf_pos >= buffer_length)
         return false;
 
@@ -100,13 +100,13 @@ bool MessageParser::parse_next_json_message(ReaderInterface &reader, size_t buff
     }
 
     if (false == found_delim) {
-        return parse_next_json_message(reader, message);
+        return parse_next_json_message(reader, message, preparsed_keys);
     }
 
-    return parse_json_line(message);
+    return parse_json_line(message, preparsed_keys);
 }
 
-bool MessageParser::parse_next_json_message(ReaderInterface &reader, ParsedMessage& message) {
+bool MessageParser::parse_next_json_message(ReaderInterface &reader, ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys) {
     message.clear_except_ts_patt();
 
     auto error_code = reader.try_read_to_delimiter(cLineDelimiter, true, true, m_line);
@@ -117,7 +117,7 @@ bool MessageParser::parse_next_json_message(ReaderInterface &reader, ParsedMessa
         return false;
     }
 
-    return parse_json_line(message);
+    return parse_json_line(message, preparsed_keys);
 }
 
 /**
@@ -171,8 +171,9 @@ bool MessageParser::parse_line (ParsedMessage& message) {
     return message_completed;
 }
 
-bool MessageParser::parse_json_line(ParsedMessage& message) {
+bool MessageParser::parse_json_line(ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys) {
 //    auto begin = std::chrono::system_clock::now();
+    message.clear_except_ts_patt();
     ordered_json object = ordered_json::parse(m_line, nullptr, false);
 //    auto end = std::chrono::system_clock::now();
 //    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
@@ -180,6 +181,23 @@ bool MessageParser::parse_json_line(ParsedMessage& message) {
 
     if (object.is_discarded()) {
         return false;
+    }
+
+    for (auto &i : preparsed_keys) {
+        size_t j = 0;
+        ordered_json* partial_object = &object;
+        while (j < i.size() && partial_object->find(i[j]) != partial_object->end()) {
+            if (j != i.size() - 1)
+                partial_object = &partial_object->at(i[j]);
+            j++;
+        }
+
+        if (j == i.size()) {
+            message.add_extracted_value(new ordered_json(partial_object->at(i[i.size() - 1])));
+            partial_object->erase(i[i.size() - 1]);
+        } else {
+            message.add_extracted_value(nullptr);
+        }
     }
 
     size_t pos;

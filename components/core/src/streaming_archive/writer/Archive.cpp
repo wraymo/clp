@@ -48,6 +48,20 @@ namespace streaming_archive { namespace writer {
         }
     }
 
+    void Archive::parse_keys (std::vector<std::string> keys) {
+        for (auto &key: keys) {
+            std::vector<std::string> temp;
+            size_t i;
+            while ((i = key.find(".")) != std::string::npos) {
+                temp.push_back(key.substr(0, i));
+                key = key.substr(i + 1);
+            }
+            if (key != "") 
+                temp.push_back(key);
+            m_preparsed_keys.push_back(temp);
+        }
+    }
+
     void Archive::open (const UserConfig& user_config) {
         int retval;
 
@@ -57,6 +71,8 @@ namespace streaming_archive { namespace writer {
         m_creator_id_as_string = boost::uuids::to_string(m_creator_id);
         m_creation_num = user_config.creation_num;
         m_print_archive_stats_progress = user_config.print_archive_stats_progress;
+
+        parse_keys(user_config.preparsed_keys);
 
         boost::system::error_code boost_error_code;
 
@@ -113,6 +129,18 @@ namespace streaming_archive { namespace writer {
             SPDLOG_ERROR("Failed to create {}, errno={}", m_segments_dir_path.c_str(), errno);
             throw OperationFailed(ErrorCode_errno, __FILENAME__, __LINE__);
         }
+
+        // Create column segment directory
+        m_column_segments_dir_path = archive_path_string;
+        m_column_segments_dir_path += '/';
+        m_column_segments_dir_path += cColumnSegmentsDirname;
+        m_column_segments_dir_path += '/';
+        retval = mkdir(m_column_segments_dir_path.c_str(), 0750);
+        if (0 != retval) {
+            SPDLOG_ERROR("Failed to create {}, errno={}", m_column_segments_dir_path.c_str(), errno);
+            throw OperationFailed(ErrorCode_errno, __FILENAME__, __LINE__);
+        }
+
 
         // Get segments directory's file descriptor
         m_segments_dir_fd = ::open(m_segments_dir_path.c_str(), O_RDONLY);
@@ -216,6 +244,10 @@ namespace streaming_archive { namespace writer {
             m_var_ids_in_segment_for_files_without_timestamps.clear();
         }
 
+        if (m_segment_for_columns.is_open()) {
+            m_segment_for_columns.close();
+        }
+
         // Persist all metadata including dictionaries
         write_dir_snapshot();
 
@@ -295,7 +327,7 @@ namespace streaming_archive { namespace writer {
         file.write_encoded_msg(timestamp, logtype_id, encoded_vars, num_uncompressed_bytes);
     }
 
-    void Archive::write_json_msg (File& file, epochtime_t timestamp, ordered_json& message, size_t num_uncompressed_bytes) {
+    void Archive::write_json_msg (File& file, epochtime_t timestamp, ordered_json& message, size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) {
         vector<encoded_variable_t> encoded_vars;
         EncodedVariableInterpreter::encode_and_add_to_dictionary(message, *m_jsontype_dict_entry_wrapper, m_logtype_dict, m_var_dict, encoded_vars);
         jsontype_dictionary_id_t jsontype_id;
@@ -303,7 +335,7 @@ namespace streaming_archive { namespace writer {
             m_jsontype_dict_entry_wrapper = make_unique<JsonTypeDictionaryEntry>();
         }
 
-        file.write_encoded_msg(timestamp, jsontype_id, encoded_vars, num_uncompressed_bytes);
+        file.write_encoded_json_msg(timestamp, jsontype_id, encoded_vars, num_uncompressed_bytes, extracted_values);
     }
 
     void Archive::write_dir_snapshot () {
@@ -410,20 +442,28 @@ namespace streaming_archive { namespace writer {
         file = nullptr;
     }
 
-    void Archive::append_file_to_segment (File*& file, Segment& segment, unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
+    void Archive::append_file_to_segment (File*& file, Segment& segment, Segment& column_segment, unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
                                           unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
                                           unordered_set<variable_dictionary_id_t>& var_ids_in_segment, vector<File*>& files_in_segment)
     {
         if (!segment.is_open()) {
-            segment.open(m_segments_dir_path, m_next_segment_id++, m_compression_level);
+            segment.open(m_segments_dir_path, m_next_segment_id, m_compression_level);
         }
 
-        file->append_to_segment(m_logtype_dict, m_jsontype_dict, segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
+        if (!column_segment.is_open()) {
+            column_segment.open(m_column_segments_dir_path, m_next_segment_id, m_compression_level);
+        }
+        
+        m_next_segment_id;
+
+        file->append_to_segment(m_logtype_dict, m_jsontype_dict, segment, column_segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
         files_in_segment.emplace_back(file);
 
+        // TODO(Rui): close column segment
         // Close current segment if its uncompressed size is greater than the target
         if (segment.get_uncompressed_size() >= m_target_segment_uncompressed_size) {
             close_segment_and_persist_file_metadata(segment, files_in_segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
+            column_segment.close();
             jsontype_ids_in_segment.clear();
             logtype_ids_in_segment.clear();
             var_ids_in_segment.clear();
@@ -446,11 +486,11 @@ namespace streaming_archive { namespace writer {
         m_mutable_files.erase(file);
 
         if (file->has_ts_pattern()) {
-            append_file_to_segment(file, m_segment_for_files_with_timestamps, m_logtype_ids_in_segment_for_files_with_timestamps,
+            append_file_to_segment(file, m_segment_for_files_with_timestamps, m_segment_for_columns, m_logtype_ids_in_segment_for_files_with_timestamps,
                                    m_jsontype_ids_in_segment_for_files_with_timestamps, m_var_ids_in_segment_for_files_with_timestamps,
                                    m_files_with_timestamps_in_segment);
         } else {
-            append_file_to_segment(file, m_segment_for_files_without_timestamps, m_logtype_ids_in_segment_for_files_without_timestamps,
+            append_file_to_segment(file, m_segment_for_files_without_timestamps, m_segment_for_columns, m_logtype_ids_in_segment_for_files_without_timestamps,
                                    m_jsontype_ids_in_segment_for_files_without_timestamps, m_var_ids_in_segment_for_files_without_timestamps,
                                    m_files_without_timestamps_in_segment);
         }

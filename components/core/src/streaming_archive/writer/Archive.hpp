@@ -51,6 +51,7 @@ namespace streaming_archive { namespace writer {
             std::string output_dir;
             GlobalMetadataDB* global_metadata_db;
             bool print_archive_stats_progress;
+            std::vector<std::string> preparsed_keys;
         };
 
         class OperationFailed : public TraceableException {
@@ -137,7 +138,7 @@ namespace streaming_archive { namespace writer {
          */
         void write_msg (File& file, epochtime_t timestamp, const std::string& message, size_t num_uncompressed_bytes);
 
-        void write_json_msg (File& file, epochtime_t timestamp, nlohmann::ordered_json& message, size_t num_uncompressed_bytes);
+        void write_json_msg (File& file, epochtime_t timestamp, nlohmann::ordered_json& message, size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values);
         /**
          * Writes snapshot of archive to disk including metadata of all files and new dictionary entries
          * @throw FileWriter::OperationFailed if failed to write or flush dictionaries
@@ -176,7 +177,7 @@ namespace streaming_archive { namespace writer {
         const std::string& get_id_as_string () const { return m_id_as_string; }
 
         size_t get_data_size_of_dictionaries () const { return m_logtype_dict.get_data_size() + m_jsontype_dict.get_data_size() + m_var_dict.get_data_size(); }
-
+        std::vector<std::vector<std::string>> get_preparsed_keys () const { return m_preparsed_keys; }
     private:
         // Types
         /**
@@ -218,7 +219,7 @@ namespace streaming_archive { namespace writer {
          * @param var_ids_in_segment
          * @param files_in_segment
          */
-        void append_file_to_segment (File*& file, Segment& segment, std::unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
+        void append_file_to_segment (File*& file, Segment& segment, Segment& column_segment, std::unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
                                      std::unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
                                      std::unordered_set<variable_dictionary_id_t>& var_ids_in_segment, std::vector<File*>& files_in_segment);
         /**
@@ -258,6 +259,8 @@ namespace streaming_archive { namespace writer {
          */
         void update_metadata ();
 
+        void parse_keys (std::vector<std::string> keys);
+
         // Variables
         boost::uuids::uuid m_id;
         std::string m_id_as_string;
@@ -272,10 +275,12 @@ namespace streaming_archive { namespace writer {
         std::string m_logs_dir_path;
         int m_logs_dir_fd;
         std::string m_segments_dir_path;
+        std::string m_column_segments_dir_path;
         int m_segments_dir_fd;
 
         LogTypeDictionaryWriter m_logtype_dict;
         JsonTypeDictionaryWriter m_jsontype_dict;
+        std::vector<std::vector<std::string>> m_preparsed_keys;
         // Wrapper to hold logtype dictionary entry that's preallocated for performance
         std::unique_ptr<LogTypeDictionaryEntry> m_logtype_dict_entry_wrapper;
         std::unique_ptr<JsonTypeDictionaryEntry> m_jsontype_dict_entry_wrapper;
@@ -308,6 +313,8 @@ namespace streaming_archive { namespace writer {
         std::unordered_set<logtype_dictionary_id_t> m_logtype_ids_in_segment_for_files_without_timestamps;
         std::unordered_set<jsontype_dictionary_id_t> m_jsontype_ids_in_segment_for_files_without_timestamps;
         std::unordered_set<variable_dictionary_id_t> m_var_ids_in_segment_for_files_without_timestamps;
+
+        Segment m_segment_for_columns;
 
         size_t m_stable_uncompressed_size;
         size_t m_stable_size;

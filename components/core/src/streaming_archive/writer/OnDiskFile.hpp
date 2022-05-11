@@ -59,7 +59,7 @@ namespace streaming_archive { namespace writer {
          */
          //TODO(Rui)
         void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                Segment& column_segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                 std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids) override;
         /**
@@ -84,6 +84,8 @@ namespace streaming_archive { namespace writer {
          */
         void write_encoded_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
                 size_t num_uncompressed_bytes) override;
+        void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
+                size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) override;
 
         // Methods specific to OnDiskFile
         /**

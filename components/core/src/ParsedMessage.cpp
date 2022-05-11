@@ -16,6 +16,7 @@ void ParsedMessage::clear_except_ts_patt () {
     } else {
         m_json_content.clear();
     }
+    m_extracted_values.clear();
 
     m_orig_num_bytes = 0;
     m_is_set = false;

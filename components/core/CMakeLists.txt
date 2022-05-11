@@ -138,6 +138,8 @@ set(SOURCE_FILES_clp
         src/clp/StructuredFileToCompress.hpp
         src/clp/utils.cpp
         src/clp/utils.hpp
+        src/ColumnWriter.cpp
+        src/ColumnWriter.hpp
         src/database_utils.cpp
         src/database_utils.hpp
         src/Defs.h

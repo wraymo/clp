@@ -8,6 +8,7 @@ namespace streaming_archive {
     constexpr archive_format_version_t cArchiveFormatVersion = 1;
     constexpr char cLogsDirname[] = "l";
     constexpr char cSegmentsDirname[] = "s";
+    constexpr char cColumnSegmentsDirname[] = "column";
     constexpr char cSegmentListFilename[] = "segment_list.txt";
     constexpr char cJsonTypeDictFilename[] = "jsontype.dict";
     constexpr char cLogTypeDictFilename[] = "logtype.dict";

@@ -238,9 +238,13 @@ namespace clp {
                         ("progress", po::bool_switch(&m_show_progress), "Show progress during compression")
                         ;
 
+                po::options_description options_preparsing_key("Preparsing key Options");
+                options_preparsing_key.add_options()
+                        ("key", po::value< vector<string> >(&m_preparsed_keys)->multitoken()->zero_tokens()->composing(), "Preparsed_keys");
                 po::options_description all_compression_options;
                 all_compression_options.add(options_compression);
                 all_compression_options.add(compression_positional_options);
+                all_compression_options.add(options_preparsing_key);
 
                 vector<string> unrecognized_options = po::collect_unrecognized(parsed.options, po::include_positional);
                 unrecognized_options.erase(unrecognized_options.begin());
@@ -250,6 +254,9 @@ namespace clp {
                         .run(), parsed_command_line_options);
 
                 notify(parsed_command_line_options);
+                // for (auto i: m_preparsed_keys) {
+                //     std::cout << i << endl;
+                // }
 
                 // Handle --help
                 if (parsed_command_line_options.count("help")) {

@@ -4,6 +4,7 @@
 // Project headers
 #include "../../PageAllocatedVector.hpp"
 #include "File.hpp"
+#include "../../ColumnWriter.hpp"
 
 namespace streaming_archive { namespace writer {
     /**
@@ -29,7 +30,13 @@ namespace streaming_archive { namespace writer {
          */
         InMemoryFile (const boost::uuids::uuid& id, const boost::uuids::uuid& orig_file_id, const std::string& orig_log_path,
                       const std::string& archive_log_path, group_id_t group_id, size_t split_ix);
-
+        ~InMemoryFile() {
+            for (auto i: m_columns) {
+                if (i != nullptr)
+                    delete i;
+            }
+            m_columns.clear();
+        }
     private:
         friend class Archive;
 
@@ -58,6 +65,8 @@ namespace streaming_archive { namespace writer {
          */
         void write_encoded_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
                 size_t num_uncompressed_bytes) override;
+        void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
+                size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) override;
 
         /**
          * Appends file's columns to the given segment
@@ -68,7 +77,7 @@ namespace streaming_archive { namespace writer {
          * @throw streaming_archive::writer::InMemoryFile::OperationFailed if file is still open or any column fails to be appended
          */
         void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                Segment& column_segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                 std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids) override;
         /**
@@ -88,8 +97,10 @@ namespace streaming_archive { namespace writer {
 
         PageAllocatedVector<epochtime_t> m_timestamps;
         PageAllocatedVector<logtype_dictionary_id_t> m_logtypes;
-        PageAllocatedVector<logtype_dictionary_id_t> m_jsontypes;
+        PageAllocatedVector<jsontype_dictionary_id_t> m_jsontypes;
         PageAllocatedVector<encoded_variable_t> m_variables;
+
+        std::vector<BaseColumnWriter*> m_columns;
 
         bool m_is_written_out;
 

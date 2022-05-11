@@ -44,6 +44,7 @@ namespace clp {
         const std::string& get_archives_dir () const { return m_archives_dir; }
         const std::vector<std::string>& get_input_paths () const { return m_input_paths; }
         const GlobalMetadataDBConfig& get_metadata_db_config () const { return m_metadata_db_config; }
+        const std::vector<std::string>& get_preparsed_keys () const { return m_preparsed_keys; }
 
     private:
         // Methods
@@ -65,6 +66,7 @@ namespace clp {
         Command m_command;
         std::string m_archives_dir;
         std::vector<std::string> m_input_paths;
+        std::vector<std::string> m_preparsed_keys;
         GlobalMetadataDBConfig m_metadata_db_config;
     };
 }
