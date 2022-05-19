@@ -50,9 +50,12 @@ public:
      */
     bool parse_next_message (bool drain_source, ReaderInterface& reader, ParsedMessage& message);
 
-    bool parse_next_json_message(ReaderInterface& reader, size_t buffer_length, const char* buffer, size_t& buf_pos, ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys);
-    bool parse_next_json_message(ReaderInterface& reader, ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys);
+    bool parse_next_json_message(ReaderInterface& reader, size_t buffer_length, const char* buffer, size_t& buf_pos, ParsedMessage& message);
+    bool parse_next_json_message(ReaderInterface& reader, ParsedMessage& message);
 
+    void set_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys) {
+        m_preparsed_keys = preparsed_keys;
+    }
 private:
     // Methods
     /**
@@ -61,11 +64,12 @@ private:
      * @return Whether a complete message has been parsed
      */
     bool parse_line (ParsedMessage& message);
-    bool parse_json_line (ParsedMessage& message, std::vector<std::vector<std::string>> preparsed_keys);
+    bool parse_json_line (ParsedMessage& message);
 
     // Variables
     std::string m_line;
     ParsedMessage m_buffered_msg;
+    std::map<std::vector<std::string>, std::string> m_preparsed_keys;
 };
 
 #endif // MESSAGEPARSER_HPP

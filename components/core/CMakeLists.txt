@@ -166,6 +166,8 @@ set(SOURCE_FILES_clp
         src/GlobalMySQLMetadataDB.hpp
         src/GlobalSQLiteMetadataDB.cpp
         src/GlobalSQLiteMetadataDB.hpp
+        src/JsonKeyConfig.cpp
+        src/JsonKeyConfig.hpp
         src/JsonTypeDictionaryEntry.cpp
         src/JsonTypeDictionaryEntry.hpp
         src/JsonTypeDictionaryReader.cpp

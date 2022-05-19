@@ -70,17 +70,35 @@ namespace streaming_archive { namespace writer {
         increment_num_uncompressed_bytes(num_uncompressed_bytes);
 
         for (size_t i = 0; i < extracted_values.size(); i++) {
-            if (i >= m_columns.size()) {
-                if (extracted_values[i]->is_string()) {
-                    m_columns.push_back(new StringColumnWriter());
-                } else if (extracted_values[i]->is_number_integer()) {
-                    m_columns.push_back(new Int64ColumnWriter());
-                } else if (extracted_values[i]->is_number_float()) {
-                    m_columns.push_back(new FloatColumnWriter());
-                }
-            }
+            // if (i >= m_columns.size()) {
+            //     if (extracted_values[i]->is_string()) {
+            //         m_columns.push_back(new StringColumnWriter());
+            //     } else if (extracted_values[i]->is_number_integer()) {
+            //         m_columns.push_back(new Int64ColumnWriter());
+            //     } else if (extracted_values[i]->is_number_float()) {
+            //         m_columns.push_back(new FloatColumnWriter());
+            //     }
+            // }
 
             m_columns[i]->add_value(extracted_values[i]);
+        }
+    }
+
+
+    void InMemoryFile::initialize_preparsed_keys (std::map<std::vector<std::string>, std::string> preparsed_keys) {
+        m_preparsed_keys = preparsed_keys;
+        for (auto iter = preparsed_keys.begin(); iter != preparsed_keys.end(); ++iter) {
+            std:string name;
+            for (auto i: iter->first) {
+                name += i;
+            }
+            if (iter->second == "string") {
+                m_columns.push_back(new StringColumnWriter(name));
+            } else if (iter->second == "int") {
+                m_columns.push_back(new Int64ColumnWriter(name));
+            } else if (iter->second == "float") {
+                m_columns.push_back(new FloatColumnWriter(name));
+            }
         }
     }
 
@@ -120,12 +138,22 @@ namespace streaming_archive { namespace writer {
         set_segment_metadata(segment.get_id(), segment_timestamps_uncompressed_pos, segment_logtypes_uncompressed_pos, segment_variables_uncompressed_pos);
         m_segmentation_state = SegmentationState_MovingToSegment;
 
+        size_t start_compressed_pos = column_segment.get_compressed_size();
+        size_t start_uncompressed_pos = column_segment.get_uncompressed_size();
+
         for (size_t i = 0; i < m_columns.size(); i++) {
             uint64_t pos;
 
             char* data = m_columns[i]->get_data();
             uint64_t size = m_columns[i]->get_size();
+            
             column_segment.append(data, size, pos);
+            size_t end_compressed_pos = column_segment.get_compressed_size();
+            size_t end_uncompressed_pos = column_segment.get_uncompressed_size();
+            std::cout << m_columns[i]->get_name() << ": " << end_compressed_pos - start_compressed_pos << " " << end_uncompressed_pos - start_uncompressed_pos << std::endl;
+            
+            start_compressed_pos = end_compressed_pos;
+            start_uncompressed_pos = end_uncompressed_pos;
         }
 
         // Mark file as written out and clear in-memory columns

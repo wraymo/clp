@@ -48,17 +48,18 @@ namespace streaming_archive { namespace writer {
         }
     }
 
-    void Archive::parse_keys (std::vector<std::string> keys) {
-        for (auto &key: keys) {
+    void Archive::parse_keys (std::map<std::string, std::string> keys) {
+        for (auto &pair: keys) {
             std::vector<std::string> temp;
             size_t i;
+            auto key = pair.first;
             while ((i = key.find(".")) != std::string::npos) {
                 temp.push_back(key.substr(0, i));
                 key = key.substr(i + 1);
             }
             if (key != "") 
                 temp.push_back(key);
-            m_preparsed_keys.push_back(temp);
+            m_preparsed_keys[temp] = pair.second;
         }
     }
 

@@ -51,7 +51,7 @@ namespace streaming_archive { namespace writer {
             std::string output_dir;
             GlobalMetadataDB* global_metadata_db;
             bool print_archive_stats_progress;
-            std::vector<std::string> preparsed_keys;
+            std::map<std::string, std::string> preparsed_keys;
         };
 
         class OperationFailed : public TraceableException {
@@ -177,7 +177,7 @@ namespace streaming_archive { namespace writer {
         const std::string& get_id_as_string () const { return m_id_as_string; }
 
         size_t get_data_size_of_dictionaries () const { return m_logtype_dict.get_data_size() + m_jsontype_dict.get_data_size() + m_var_dict.get_data_size(); }
-        std::vector<std::vector<std::string>> get_preparsed_keys () const { return m_preparsed_keys; }
+        std::map<std::vector<std::string>, std::string> get_preparsed_keys () const { return m_preparsed_keys; }
     private:
         // Types
         /**
@@ -259,7 +259,7 @@ namespace streaming_archive { namespace writer {
          */
         void update_metadata ();
 
-        void parse_keys (std::vector<std::string> keys);
+        void parse_keys (std::map<std::string, std::string> keys);
 
         // Variables
         boost::uuids::uuid m_id;
@@ -280,7 +280,7 @@ namespace streaming_archive { namespace writer {
 
         LogTypeDictionaryWriter m_logtype_dict;
         JsonTypeDictionaryWriter m_jsontype_dict;
-        std::vector<std::vector<std::string>> m_preparsed_keys;
+        std::map<std::vector<std::string>, std::string> m_preparsed_keys;
         // Wrapper to hold logtype dictionary entry that's preallocated for performance
         std::unique_ptr<LogTypeDictionaryEntry> m_logtype_dict_entry_wrapper;
         std::unique_ptr<JsonTypeDictionaryEntry> m_jsontype_dict_entry_wrapper;

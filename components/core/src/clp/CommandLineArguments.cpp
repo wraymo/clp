@@ -239,8 +239,9 @@ namespace clp {
                         ;
 
                 po::options_description options_preparsing_key("Preparsing key Options");
+                string key_config_path;
                 options_preparsing_key.add_options()
-                        ("key", po::value< vector<string> >(&m_preparsed_keys)->multitoken()->zero_tokens()->composing(), "Preparsed_keys");
+                        ("key-config-file", po::value<string>(&key_config_path)->value_name("FILE")->default_value(key_config_path), "Read preparsed keys from FILE");
                 po::options_description all_compression_options;
                 all_compression_options.add(options_compression);
                 all_compression_options.add(compression_positional_options);
@@ -302,6 +303,15 @@ namespace clp {
                     }
                     if (false == boost::filesystem::is_directory(m_path_prefix_to_remove)) {
                         throw invalid_argument("Specified prefix to remove is not a directory.");
+                    }
+                }
+
+                if (false == key_config_path.empty()) {
+                    try {
+                        m_json_key_config.parse_config_file(key_config_path);
+                    } catch (std::exception& e) {
+                        SPDLOG_ERROR("Failed to validate json key config - {}", e.what());
+                        return ParsingResult::Failure;
                     }
                 }
             }

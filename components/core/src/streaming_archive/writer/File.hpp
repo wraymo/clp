@@ -81,6 +81,7 @@ namespace streaming_archive { namespace writer {
         void set_type (FileType type) { m_type = type; }
         FileType get_type () { return m_type; }
         std::string get_type_as_string() { return m_type == FileType::TEXT? "text": "json"; }
+        virtual void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys) = 0;
 
         /**
          * Changes timestamp pattern in use at current message in file
@@ -158,6 +159,7 @@ namespace streaming_archive { namespace writer {
         uint64_t get_segment_variables_pos () const { return m_segment_variables_pos; }
         bool is_split () const { return m_is_split; }
         size_t get_split_ix () const { return m_split_ix; }
+        std::map<std::vector<std::string>, std::string> get_preparsed_keys () const { return m_preparsed_keys; }
 
     protected:
         // Types
@@ -166,7 +168,7 @@ namespace streaming_archive { namespace writer {
             SegmentationState_MovingToSegment,
             SegmentationState_InSegment
         } SegmentationState;
-
+        std::map<std::vector<std::string>, std::string> m_preparsed_keys;
         // Methods
         /**
          * Takes logtype and variable IDs from a file's logtype and variable columns and appends them to the given sets
@@ -248,6 +250,8 @@ namespace streaming_archive { namespace writer {
 
         // State variables
         bool m_is_metadata_clean;
+
+
     };
 } }
 

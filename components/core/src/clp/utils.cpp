@@ -205,10 +205,12 @@ namespace clp {
     {
         auto orig_file_id = file->get_orig_file_id();
         auto split_ix = file->get_split_ix();
+        auto preparsed_keys = file->get_preparsed_keys();
         file->set_is_split(true);
         close_file_and_mark_ready_for_segment(archive_writer, file);
-
+ 
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
+        file->initialize_preparsed_keys(preparsed_keys);
         // Initialize the file's timestamp pattern to the previous split's pattern
         archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
     }
@@ -219,12 +221,14 @@ namespace clp {
     {
         auto orig_file_id = file->get_orig_file_id();
         auto split_ix = file->get_split_ix();
+        auto preparsed_keys = file->get_preparsed_keys();
         file->set_is_split(true);
         close_file_and_mark_ready_for_segment(archive_writer, file);
 
         split_archive(archive_user_config, archive_writer);
 
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
+        file->initialize_preparsed_keys(preparsed_keys);
         // Initialize the file's timestamp pattern to the previous split's pattern
         archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
     }

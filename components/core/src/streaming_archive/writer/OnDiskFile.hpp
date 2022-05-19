@@ -86,7 +86,7 @@ namespace streaming_archive { namespace writer {
                 size_t num_uncompressed_bytes) override;
         void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
                 size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) override;
-
+        void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys) override;
         // Methods specific to OnDiskFile
         /**
          * Flushes file to disk

@@ -7,14 +7,19 @@
 using nlohmann::ordered_json;
 class BaseColumnWriter {
 public:
+    BaseColumnWriter(std::string name): m_name(name) {}
     virtual ~BaseColumnWriter() = default;
     virtual void add_value(ordered_json* value) = 0;
     virtual char* get_data() = 0;
     virtual size_t get_size() = 0;
+    std::string get_name() { return m_name; }
+private:
+    std::string m_name;    
 };
 
 class Int64ColumnWriter: public BaseColumnWriter {
 public:
+    Int64ColumnWriter(std::string name): BaseColumnWriter(name) {}
     ~Int64ColumnWriter() = default;
     void add_value(ordered_json* value) override;
     char* get_data() override;
@@ -25,6 +30,7 @@ private:
 
 class FloatColumnWriter: public BaseColumnWriter {
 public:
+    FloatColumnWriter(std::string name): BaseColumnWriter(name) {}
     ~FloatColumnWriter() = default;
     void add_value(ordered_json* value) override;
     char* get_data() override;
@@ -35,7 +41,7 @@ private:
 
 class StringColumnWriter: public BaseColumnWriter {
 public:
-    StringColumnWriter(): m_ptr(NULL), m_length(0UL) {}
+    StringColumnWriter(std::string name): BaseColumnWriter(name), m_ptr(NULL), m_length(0UL) {}
     ~StringColumnWriter() {
         if (m_ptr != NULL) {
             delete m_ptr;
