@@ -19,6 +19,8 @@
 #include "../Profiler.hpp"
 #include "../streaming_archive/Constants.hpp"
 #include "../Utils.hpp"
+#include "../VariableDictionaryReader.hpp"
+
 #include "CommandLineArguments.hpp"
 
 using clg::CommandLineArguments;
@@ -32,6 +34,7 @@ using streaming_archive::MetadataDB;
 using streaming_archive::reader::Archive;
 using streaming_archive::reader::File;
 using streaming_archive::reader::Message;
+using streaming_archive::reader::SegmentManager;
 
 /**
  * Opens the archive and reads the dictionaries
@@ -89,13 +92,13 @@ static void print_result_binary (const string& orig_file_path, const Message& co
  * @param file_path
  * @return An archive iterator
  */
-static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path);
+static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db);
 
-static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path, const std::string& type) {
+static GlobalMetadataDB::ArchiveIterator* get_archive_iterator (GlobalMetadataDB& global_metadata_db, const std::string& file_path) {
     if (file_path.empty()) {
-        return global_metadata_db.get_archive_iterator(type);
+        return global_metadata_db.get_archive_iterator();
     } else {
-        return global_metadata_db.get_archive_iterator_for_file_path(file_path, type);
+        return global_metadata_db.get_archive_iterator_for_file_path(file_path);
     }
 }
 
@@ -336,6 +339,45 @@ int main (int argc, const char* argv[]) {
             break;
     }
 
+
+    if(command_line_args.json_search()) {
+
+        std::cout << "lalala" << std::endl;
+        string path = "rider-product-core-multiple-segment/314511f7-2f7c-4607-95a2-2cfdbb5e4151/column/";
+        string search_string = command_line_args.get_search_string();
+        auto pos = search_string.find("=");
+        auto left = search_string.substr(0, pos);
+        auto right =  search_string.substr(pos + 1);
+        // std::cout << left << std::endl;
+        // std::cout << right << std::endl;
+        auto data = std::make_unique<int64_t[]>(1000000);
+        SegmentManager segment_manager;
+        segment_manager.open(path + left + "_");
+
+        auto num_bytes_to_read = 1000000*sizeof(int64_t);
+        auto error_code = segment_manager.try_read(0, 0, reinterpret_cast<char*>(data.get()), num_bytes_to_read);
+        
+        string var_dict_path = path + left + ".dict";
+        string var_segment_index_path = path + left + ".index";
+        VariableDictionaryReader var_dictionary;
+        var_dictionary.open(var_dict_path, var_segment_index_path);
+        var_dictionary.read_new_entries();
+
+        auto entries = var_dictionary.get_entries();
+        size_t i;
+        for (i = 0; i < entries.size(); i++) {
+            if (entries[i].get_value() == right)
+                break;
+        }
+
+        for (size_t j = 0; j < 1000000; j++) {
+            if (data[j] == i)
+                std::cout << j << std::endl;
+        }
+
+        return 0;
+    }
+
     // Create vector of search strings
     vector<string> search_strings;
     if (command_line_args.get_search_strings_file_path().empty()) {
@@ -386,7 +428,7 @@ int main (int argc, const char* argv[]) {
     if (command_line_args.json_search()) {
         search_type = "json";
     } else {
-        search_type = "text"
+        search_type = "text";
     }
 
     string archive_id;

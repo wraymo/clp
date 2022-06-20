@@ -46,6 +46,7 @@ namespace streaming_archive { namespace writer {
          * @throw streaming_archive::writer::Segment::OperationFailed if segment wasn't closed before this call
          */
         void open (const std::string& segments_dir_path, segment_id_t id, int compression_level);
+        void open (const std::string& segments_dir_path, const std::string& segment_name, segment_id_t id, int compression_level);
         /**
          * Closes the segment
          * @throw streaming_archive::writer::Segment::OperationFailed if compression fails

@@ -210,7 +210,7 @@ namespace clp {
         close_file_and_mark_ready_for_segment(archive_writer, file);
  
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
-        file->initialize_preparsed_keys(preparsed_keys);
+        file->initialize_preparsed_keys(preparsed_keys, archive_writer.get_column_segments_dir_path());
         // Initialize the file's timestamp pattern to the previous split's pattern
         archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
     }
@@ -228,7 +228,7 @@ namespace clp {
         split_archive(archive_user_config, archive_writer);
 
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
-        file->initialize_preparsed_keys(preparsed_keys);
+        file->initialize_preparsed_keys(preparsed_keys, archive_writer.get_column_segments_dir_path());
         // Initialize the file's timestamp pattern to the previous split's pattern
         archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
     }

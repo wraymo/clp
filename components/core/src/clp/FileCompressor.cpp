@@ -133,7 +133,7 @@ namespace clp {
         m_message_parser.set_preparsed_keys(archive_writer.get_preparsed_keys());
         if (m_message_parser.parse_next_json_message(reader, m_utf8_validation_buf_length, m_utf8_validation_buf,buf_pos, m_parsed_message)) {
             file->set_type(streaming_archive::writer::File::FileType::JSON);
-            file->initialize_preparsed_keys(archive_writer.get_preparsed_keys());
+            file->initialize_preparsed_keys(archive_writer.get_preparsed_keys(), archive_writer.get_column_segments_dir_path());
              do {
                 if (archive_writer.get_data_size_of_dictionaries() >= target_data_size_of_dicts) {
                     split_file_and_archive(archive_user_config, path_for_compression, group_id, m_parsed_message.get_ts_patt(), archive_writer, file);

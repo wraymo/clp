@@ -14,6 +14,16 @@
 #include "FileReader.hpp"
 #include "ParsedMessage.hpp"
 
+struct EncodedString {
+    encoded_variable_t var_id;
+    size_t length;
+};
+
+union EncodedJsonVar {
+    double d;
+    int64_t i;
+    EncodedString s;
+};
 /**
  * Cleans wildcard search string
  * - Removes consecutive '*'

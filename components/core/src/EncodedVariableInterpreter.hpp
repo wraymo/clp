@@ -80,6 +80,8 @@ public:
                                                           std::vector<encoded_variable_t>& encoded_vars);
     static void encode_and_add_to_dictionary (ordered_json& message, JsonTypeDictionaryEntry& jsontype_dict_entry, LogTypeDictionaryWriter& logtype_dict,
                                               VariableDictionaryWriter& var_dict, std::vector<encoded_variable_t>& encoded_vars);
+
+    static void add_extracted_values_to_dictionary (std::vector<ordered_json*>& extracted_values, VariableDictionaryWriter& var_dict, std::vector<EncodedJsonVar>& encoded_vars);
     /**
      * Decodes all variables and decompresses them into a message
      * @param logtype_dict_entry

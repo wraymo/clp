@@ -16,6 +16,7 @@
 #include "../../JsonTypeDictionaryWriter.hpp"
 #include "../../TimestampPattern.hpp"
 #include "Segment.hpp"
+#include "../../Utils.hpp"
 
 namespace streaming_archive { namespace writer {
     /**
@@ -70,7 +71,7 @@ namespace streaming_archive { namespace writer {
         virtual void open () = 0;
         virtual void close () = 0;
         virtual void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                        Segment& column_segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                        std::vector<Segment*>& column_segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                         std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                         std::unordered_set<variable_dictionary_id_t>& segment_var_ids) = 0;
         virtual void cleanup_after_segment_insertion () = 0;
@@ -78,10 +79,12 @@ namespace streaming_archive { namespace writer {
                 size_t num_uncompressed_bytes) = 0;
         virtual void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
                 size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) = 0;
+        // virtual void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
+        //         size_t num_uncompressed_bytes, std::vector<EncodedJsonVar>& extracted_values) = 0;
         void set_type (FileType type) { m_type = type; }
         FileType get_type () { return m_type; }
         std::string get_type_as_string() { return m_type == FileType::TEXT? "text": "json"; }
-        virtual void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys) = 0;
+        virtual void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys, std::string dir) = 0;
 
         /**
          * Changes timestamp pattern in use at current message in file

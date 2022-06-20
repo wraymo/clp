@@ -247,6 +247,29 @@ void EncodedVariableInterpreter::encode_and_add_to_dictionary (ordered_json& mes
     jsontype_dict_entry.set(message);
 }
 
+void EncodedVariableInterpreter::add_extracted_values_to_dictionary (std::vector<ordered_json*>& extracted_values, VariableDictionaryWriter& var_dict,
+                                                                     std::vector<EncodedJsonVar>& encoded_vars)
+{
+    for (int i = 0; i < extracted_values.size(); i++) {
+        encoded_variable_t encoded_var;
+        if (extracted_values[i] == nullptr)
+            continue;
+        if (extracted_values[i]->is_string()) {
+            string str = extracted_values[i]->get<string>();
+            variable_dictionary_id_t id;
+            var_dict.add_occurrence(str, id);
+            encoded_var = encode_var_dict_id(id);
+            encoded_vars.push_back(EncodedJsonVar{.s = {EncodedString{.var_id = encoded_var, .length = str.length()}}});
+        } else if (extracted_values[i]->is_number_integer()) {
+            int64_t num = extracted_values[i]->get<int64_t>();
+            encoded_vars.push_back(EncodedJsonVar{.i = encoded_var});
+        } else if (extracted_values[i]->is_number_float()) {
+            double value = extracted_values[i]->get<double>();
+            encoded_vars.push_back(EncodedJsonVar{.d = value});
+        }
+    }
+}
+
 bool EncodedVariableInterpreter::decode_variables_into_json_message (ordered_json& object, const LogTypeDictionaryReader &logtype_dict,
                                                                      const VariableDictionaryReader &var_dict, size_t &var_ix,
                                                                      const std::vector<encoded_variable_t> &encoded_vars)

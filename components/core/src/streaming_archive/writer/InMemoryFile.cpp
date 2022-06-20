@@ -84,8 +84,39 @@ namespace streaming_archive { namespace writer {
         }
     }
 
+    // void InMemoryFile::write_encoded_json_msg (epochtime_t timestamp, jsontype_dictionary_id_t jsontype_id, const std::vector<encoded_variable_t>& encoded_vars,
+    //             size_t num_uncompressed_bytes, vector<EncodedJsonVar>& extracted_values)
+    // {
+    //     m_timestamps.push_back(timestamp);
 
-    void InMemoryFile::initialize_preparsed_keys (std::map<std::vector<std::string>, std::string> preparsed_keys) {
+    //     if (get_type() == FileType::TEXT) {
+    //         m_logtypes.push_back(jsontype_id);
+    //     } else {
+    //         m_jsontypes.push_back(jsontype_id);
+    //     }
+
+    //     m_variables.push_back_all(encoded_vars);
+    //     increment_num_messages_and_variables(1, encoded_vars.size());
+
+    //     set_last_message_timestamp(timestamp);
+    //     increment_num_uncompressed_bytes(num_uncompressed_bytes);
+
+    //     for (size_t i = 0; i < extracted_values.size(); i++) {
+    //         // if (i >= m_columns.size()) {
+    //         //     if (extracted_values[i]->is_string()) {
+    //         //         m_columns.push_back(new StringColumnWriter());
+    //         //     } else if (extracted_values[i]->is_number_integer()) {
+    //         //         m_columns.push_back(new Int64ColumnWriter());
+    //         //     } else if (extracted_values[i]->is_number_float()) {
+    //         //         m_columns.push_back(new FloatColumnWriter());
+    //         //     }
+    //         // }
+
+    //         m_columns[i]->add_value(extracted_values[i]);
+    //     }
+    // }
+
+    void InMemoryFile::initialize_preparsed_keys (std::map<std::vector<std::string>, std::string> preparsed_keys, std::string dir) {
         m_preparsed_keys = preparsed_keys;
         for (auto iter = preparsed_keys.begin(); iter != preparsed_keys.end(); ++iter) {
             std:string name;
@@ -93,7 +124,7 @@ namespace streaming_archive { namespace writer {
                 name += i;
             }
             if (iter->second == "string") {
-                m_columns.push_back(new StringColumnWriter(name));
+                m_columns.push_back(new StringColumnWriter(name, dir));
             } else if (iter->second == "int") {
                 m_columns.push_back(new Int64ColumnWriter(name));
             } else if (iter->second == "float") {
@@ -103,7 +134,7 @@ namespace streaming_archive { namespace writer {
     }
 
     void InMemoryFile::append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                          Segment& column_segment, unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
+                                          vector<Segment*>& column_segments, unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
                                           unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
                                           unordered_set<variable_dictionary_id_t>& segment_var_ids)
     {
@@ -138,22 +169,23 @@ namespace streaming_archive { namespace writer {
         set_segment_metadata(segment.get_id(), segment_timestamps_uncompressed_pos, segment_logtypes_uncompressed_pos, segment_variables_uncompressed_pos);
         m_segmentation_state = SegmentationState_MovingToSegment;
 
-        size_t start_compressed_pos = column_segment.get_compressed_size();
-        size_t start_uncompressed_pos = column_segment.get_uncompressed_size();
 
         for (size_t i = 0; i < m_columns.size(); i++) {
+            size_t start_compressed_pos = column_segments[i]->get_compressed_size();
+            size_t start_uncompressed_pos = column_segments[i]->get_uncompressed_size();
+
             uint64_t pos;
 
             char* data = m_columns[i]->get_data();
             uint64_t size = m_columns[i]->get_size();
             
-            column_segment.append(data, size, pos);
-            size_t end_compressed_pos = column_segment.get_compressed_size();
-            size_t end_uncompressed_pos = column_segment.get_uncompressed_size();
+            column_segments[i]->append(data, size, pos);
+            size_t end_compressed_pos = column_segments[i]->get_compressed_size();
+            size_t end_uncompressed_pos = column_segments[i]->get_uncompressed_size();
             std::cout << m_columns[i]->get_name() << ": " << end_compressed_pos - start_compressed_pos << " " << end_uncompressed_pos - start_uncompressed_pos << std::endl;
             
-            start_compressed_pos = end_compressed_pos;
-            start_uncompressed_pos = end_uncompressed_pos;
+            // start_compressed_pos = end_compressed_pos;
+            // start_uncompressed_pos = end_uncompressed_pos;
         }
 
         // Mark file as written out and clear in-memory columns

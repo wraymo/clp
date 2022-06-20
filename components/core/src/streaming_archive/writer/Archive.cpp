@@ -45,11 +45,18 @@ namespace streaming_archive { namespace writer {
             for (auto file : m_files_without_timestamps_in_segment) {
                 delete file;
             }
+            for (size_t i = 0; i < m_segments_for_columns.size(); i++) {
+                if (m_segments_for_columns[i] != nullptr) {
+                    delete m_segments_for_columns[i];
+                }
+            }
         }
     }
 
     void Archive::parse_keys (std::map<std::string, std::string> keys) {
         for (auto &pair: keys) {
+            m_preparsed_keys_original.push_back(pair.first);
+
             std::vector<std::string> temp;
             size_t i;
             auto key = pair.first;
@@ -60,6 +67,9 @@ namespace streaming_archive { namespace writer {
             if (key != "") 
                 temp.push_back(key);
             m_preparsed_keys[temp] = pair.second;
+
+            Segment* segment = new Segment();
+            m_segments_for_columns.push_back(segment);
         }
     }
 
@@ -239,14 +249,16 @@ namespace streaming_archive { namespace writer {
             close_segment_and_persist_file_metadata(m_segment_for_files_without_timestamps, m_files_without_timestamps_in_segment,
                                                     m_logtype_ids_in_segment_for_files_without_timestamps,
                                                     m_jsontype_ids_in_segment_for_files_without_timestamps,
-                                                    m_var_ids_in_segment_for_files_without_timestamps);
+                                                    m_var_ids_in_segment_for_files_without_timestamps);                                        
             m_logtype_ids_in_segment_for_files_without_timestamps.clear();
             m_jsontype_ids_in_segment_for_files_without_timestamps.clear();
             m_var_ids_in_segment_for_files_without_timestamps.clear();
         }
 
-        if (m_segment_for_columns.is_open()) {
-            m_segment_for_columns.close();
+        for (size_t i = 0; i < m_segments_for_columns.size(); i++) {
+            if (m_segments_for_columns[i]->is_open()) {
+                m_segments_for_columns[i]->close();
+            }
         }
 
         // Persist all metadata including dictionaries
@@ -330,12 +342,15 @@ namespace streaming_archive { namespace writer {
 
     void Archive::write_json_msg (File& file, epochtime_t timestamp, ordered_json& message, size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) {
         vector<encoded_variable_t> encoded_vars;
+        // vector<EncodedJsonVar> encoded_extracted_vars;
         EncodedVariableInterpreter::encode_and_add_to_dictionary(message, *m_jsontype_dict_entry_wrapper, m_logtype_dict, m_var_dict, encoded_vars);
         jsontype_dictionary_id_t jsontype_id;
         if (m_jsontype_dict.add_occurrence(m_jsontype_dict_entry_wrapper, jsontype_id)) {
             m_jsontype_dict_entry_wrapper = make_unique<JsonTypeDictionaryEntry>();
         }
 
+        // EncodedVariableInterpreter::add_extracted_values_to_dictionary(extracted_values, m_var_dict, encoded_extracted_vars);
+        // file.write_encoded_json_msg(timestamp, jsontype_id, encoded_vars, num_uncompressed_bytes, encoded_extracted_vars);
         file.write_encoded_json_msg(timestamp, jsontype_id, encoded_vars, num_uncompressed_bytes, extracted_values);
     }
 
@@ -443,7 +458,7 @@ namespace streaming_archive { namespace writer {
         file = nullptr;
     }
 
-    void Archive::append_file_to_segment (File*& file, Segment& segment, Segment& column_segment, unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
+    void Archive::append_file_to_segment (File*& file, Segment& segment, vector<Segment*>& column_segments, unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
                                           unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
                                           unordered_set<variable_dictionary_id_t>& var_ids_in_segment, vector<File*>& files_in_segment)
     {
@@ -451,20 +466,28 @@ namespace streaming_archive { namespace writer {
             segment.open(m_segments_dir_path, m_next_segment_id, m_compression_level);
         }
 
-        if (!column_segment.is_open()) {
-            column_segment.open(m_column_segments_dir_path, m_next_segment_id, m_compression_level);
+        for (size_t i = 0; i < column_segments.size(); i++) {
+            if (!column_segments[i]->is_open()) {
+                column_segments[i]->open(m_column_segments_dir_path, m_preparsed_keys_original[i], m_next_segment_id, m_compression_level);
+            }
         }
-        
-        m_next_segment_id;
 
-        file->append_to_segment(m_logtype_dict, m_jsontype_dict, segment, column_segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
+        m_next_segment_id++;
+
+        file->append_to_segment(m_logtype_dict, m_jsontype_dict, segment, column_segments, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
         files_in_segment.emplace_back(file);
 
         // TODO(Rui): close column segment
         // Close current segment if its uncompressed size is greater than the target
         if (segment.get_uncompressed_size() >= m_target_segment_uncompressed_size) {
             close_segment_and_persist_file_metadata(segment, files_in_segment, logtype_ids_in_segment, jsontype_ids_in_segment, var_ids_in_segment);
-            column_segment.close();
+            
+            for (size_t i = 0; i < column_segments.size(); i++) {
+                if (!column_segments[i]->is_open()) {
+                    column_segments[i]->close();
+                }
+            }
+
             jsontype_ids_in_segment.clear();
             logtype_ids_in_segment.clear();
             var_ids_in_segment.clear();
@@ -487,11 +510,11 @@ namespace streaming_archive { namespace writer {
         m_mutable_files.erase(file);
 
         if (file->has_ts_pattern()) {
-            append_file_to_segment(file, m_segment_for_files_with_timestamps, m_segment_for_columns, m_logtype_ids_in_segment_for_files_with_timestamps,
+            append_file_to_segment(file, m_segment_for_files_with_timestamps, m_segments_for_columns, m_logtype_ids_in_segment_for_files_with_timestamps,
                                    m_jsontype_ids_in_segment_for_files_with_timestamps, m_var_ids_in_segment_for_files_with_timestamps,
                                    m_files_with_timestamps_in_segment);
         } else {
-            append_file_to_segment(file, m_segment_for_files_without_timestamps, m_segment_for_columns, m_logtype_ids_in_segment_for_files_without_timestamps,
+            append_file_to_segment(file, m_segment_for_files_without_timestamps, m_segments_for_columns, m_logtype_ids_in_segment_for_files_without_timestamps,
                                    m_jsontype_ids_in_segment_for_files_without_timestamps, m_var_ids_in_segment_for_files_without_timestamps,
                                    m_files_without_timestamps_in_segment);
         }

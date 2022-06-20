@@ -178,6 +178,8 @@ namespace streaming_archive { namespace writer {
 
         size_t get_data_size_of_dictionaries () const { return m_logtype_dict.get_data_size() + m_jsontype_dict.get_data_size() + m_var_dict.get_data_size(); }
         std::map<std::vector<std::string>, std::string> get_preparsed_keys () const { return m_preparsed_keys; }
+        std::string get_column_segments_dir_path() const { return m_column_segments_dir_path; }
+
     private:
         // Types
         /**
@@ -219,7 +221,7 @@ namespace streaming_archive { namespace writer {
          * @param var_ids_in_segment
          * @param files_in_segment
          */
-        void append_file_to_segment (File*& file, Segment& segment, Segment& column_segment, std::unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
+        void append_file_to_segment (File*& file, Segment& segment, std::vector<Segment*>& column_segments, std::unordered_set<logtype_dictionary_id_t>& logtype_ids_in_segment,
                                      std::unordered_set<jsontype_dictionary_id_t>& jsontype_ids_in_segment,
                                      std::unordered_set<variable_dictionary_id_t>& var_ids_in_segment, std::vector<File*>& files_in_segment);
         /**
@@ -281,6 +283,7 @@ namespace streaming_archive { namespace writer {
         LogTypeDictionaryWriter m_logtype_dict;
         JsonTypeDictionaryWriter m_jsontype_dict;
         std::map<std::vector<std::string>, std::string> m_preparsed_keys;
+        std::vector<std::string> m_preparsed_keys_original;
         // Wrapper to hold logtype dictionary entry that's preallocated for performance
         std::unique_ptr<LogTypeDictionaryEntry> m_logtype_dict_entry_wrapper;
         std::unique_ptr<JsonTypeDictionaryEntry> m_jsontype_dict_entry_wrapper;
@@ -314,7 +317,7 @@ namespace streaming_archive { namespace writer {
         std::unordered_set<jsontype_dictionary_id_t> m_jsontype_ids_in_segment_for_files_without_timestamps;
         std::unordered_set<variable_dictionary_id_t> m_var_ids_in_segment_for_files_without_timestamps;
 
-        Segment m_segment_for_columns;
+        std::vector<Segment*> m_segments_for_columns;
 
         size_t m_stable_uncompressed_size;
         size_t m_stable_size;

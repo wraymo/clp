@@ -310,10 +310,20 @@ set(SOURCE_FILES_clg
         src/GlobalSQLiteMetadataDB.hpp
         src/Grep.cpp
         src/Grep.hpp
+        src/JsonKeyConfig.cpp
+        src/JsonKeyConfig.hpp
+        src/JsonTypeDictionaryEntry.cpp
+        src/JsonTypeDictionaryEntry.hpp
+        src/JsonTypeDictionaryReader.cpp
+        src/JsonTypeDictionaryReader.hpp
+        src/JsonTypeDictionaryWriter.cpp
+        src/JsonTypeDictionaryWriter.hpp
         src/LogTypeDictionaryEntry.cpp
         src/LogTypeDictionaryEntry.hpp
         src/LogTypeDictionaryReader.cpp
         src/LogTypeDictionaryReader.hpp
+        src/LogTypeDictionaryWriter.cpp
+        src/LogTypeDictionaryWriter.hpp
         src/MySQLDB.cpp
         src/MySQLDB.hpp
         src/MySQLParamBindings.cpp

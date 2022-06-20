@@ -47,6 +47,27 @@ namespace streaming_archive { namespace writer {
 #endif
     }
 
+    void Segment::open (const string& segments_dir_path, const string& segment_name, segment_id_t id, int compression_level) {
+        if (!m_segment_path.empty()) {
+            throw OperationFailed(ErrorCode_NotInit, __FILENAME__, __LINE__);
+        }
+
+        m_id = id;
+
+        // Construct segment path
+        m_segment_path = segments_dir_path;
+        m_segment_path += segment_name + "_";
+        m_segment_path += std::to_string(m_id);
+
+        m_file_writer.open(m_segment_path, FileWriter::OpenMode::CREATE_FOR_WRITING);
+#if USE_PASSTHROUGH_COMPRESSION
+        m_compressor.open(m_file_writer);
+#else
+        // Configure a zstd streaming compressor
+        m_compressor.open(m_file_writer, compression_level);
+#endif
+    }
+
     void Segment::close () {
         m_compressor.close();
         m_file_writer.flush();
