@@ -1,4 +1,5 @@
 // C++ standard libraries
+#include <set>
 #include <string>
 
 // Boost libraries
@@ -41,6 +42,7 @@ int main (int argc, const char* argv[]) {
     }
 
     FileWriter file_writer;
+    FileWriter index_writer;
 
     // Open log-type dictionary
     auto logtype_dict_path = boost::filesystem::path(command_line_args.get_archive_path()) / streaming_archive::cLogTypeDictFilename;
@@ -51,8 +53,11 @@ int main (int argc, const char* argv[]) {
 
     // Write readable dictionary
     auto readable_logtype_dict_path = boost::filesystem::path(command_line_args.get_output_dir()) / streaming_archive::cLogTypeDictFilename;
+    auto readable_logtype_segment_index_path  = boost::filesystem::path(command_line_args.get_output_dir()) / streaming_archive::cLogTypeSegmentIndexFilename;
     readable_logtype_dict_path += ".hr";
+    readable_logtype_segment_index_path  += ".hr";
     file_writer.open(readable_logtype_dict_path.string(), FileWriter::OpenMode::CREATE_FOR_WRITING);
+    index_writer.open(readable_logtype_segment_index_path.string(), FileWriter::OpenMode::CREATE_FOR_WRITING);
     string human_readable_value;
     for (const auto& entry : logtype_dict.get_entries()) {
         const auto& value = entry.get_value();
@@ -61,23 +66,18 @@ int main (int argc, const char* argv[]) {
         size_t constant_begin_pos = 0;
         for (size_t var_ix = 0; var_ix < entry.get_num_vars(); ++var_ix) {
             LogTypeDictionaryEntry::VarDelim var_delim;
-            uint8_t num_integer_digits, num_fractional_digits;
-            size_t var_pos = entry.get_var_info(var_ix, var_delim, num_integer_digits, num_fractional_digits);
+            size_t var_pos = entry.get_var_info(var_ix, var_delim);
 
             // Add the constant that's between the last variable and this one, with newlines escaped
             human_readable_value.append(value, constant_begin_pos, var_pos - constant_begin_pos);
 
             if (LogTypeDictionaryEntry::VarDelim::NonDouble == var_delim) {
                 human_readable_value += "\\v";
-
-                // Move past the variable delimiter
-                constant_begin_pos = var_pos + 1;
             } else { // LogTypeDictionaryEntry::VarDelim::Double == var_delim
-                human_readable_value += "\\ff";
-
-                // Move past the variable delimiter and the double's precision
-                constant_begin_pos = var_pos + 2;
+                human_readable_value += "\\f";
             }
+            // Move past the variable delimiter
+            constant_begin_pos = var_pos + 1;
         }
         // Append remainder of value, if any
         if (constant_begin_pos < value.length()) {
@@ -86,8 +86,16 @@ int main (int argc, const char* argv[]) {
 
         file_writer.write_string(replace_characters("\n", "n", human_readable_value, true));
         file_writer.write_char('\n');
+
+        const std::set<segment_id_t>& segment_ids = entry.get_ids_of_segments_containing_entry();
+        // segment_ids is a std::set, which iterates the IDs in ascending order
+        for (auto segment_id : segment_ids) {
+            index_writer.write_string(std::to_string(segment_id) + " ");
+        }
+        index_writer.write_char('\n');
     }
     file_writer.close();
+    index_writer.close();
 
     logtype_dict.close();
 
@@ -100,13 +108,24 @@ int main (int argc, const char* argv[]) {
 
     // Write readable dictionary
     auto readable_var_dict_path = boost::filesystem::path(command_line_args.get_output_dir()) / streaming_archive::cVarDictFilename;
+    auto readable_var_segment_index_path = boost::filesystem::path(command_line_args.get_output_dir()) / streaming_archive::cVarSegmentIndexFilename;
     readable_var_dict_path += ".hr";
+    readable_var_segment_index_path += ".hr";
     file_writer.open(readable_var_dict_path.string(), FileWriter::OpenMode::CREATE_FOR_WRITING);
+    index_writer.open(readable_var_segment_index_path.string(), FileWriter::OpenMode::CREATE_FOR_WRITING);
     for (const auto& entry : var_dict.get_entries()) {
         file_writer.write_string(entry.get_value());
         file_writer.write_char('\n');
+
+        const std::set<segment_id_t>& segment_ids = entry.get_ids_of_segments_containing_entry();
+        // segment_ids is a std::set, which iterates the IDs in ascending order
+        for (auto segment_id : segment_ids) {
+            index_writer.write_string(std::to_string(segment_id) + " ");
+        }
+        index_writer.write_char('\n');
     }
     file_writer.close();
+    index_writer.close();
 
     var_dict.close();
 

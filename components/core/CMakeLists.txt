@@ -121,6 +121,8 @@ include(cmake/Modules/FindLibraryDependencies.cmake)
 FindDynamicLibraryDependencies(sqlite "${sqlite_DYNAMIC_LIBS}")
 
 set(SOURCE_FILES_clp
+        src/ArrayBackedPosIntSet.cpp
+        src/ArrayBackedPosIntSet.hpp
         src/clp/clp.cpp
         src/clp/CommandLineArguments.cpp
         src/clp/CommandLineArguments.hpp
@@ -225,10 +227,6 @@ set(SOURCE_FILES_clp
         src/streaming_archive/writer/Archive.hpp
         src/streaming_archive/writer/File.cpp
         src/streaming_archive/writer/File.hpp
-        src/streaming_archive/writer/InMemoryFile.cpp
-        src/streaming_archive/writer/InMemoryFile.hpp
-        src/streaming_archive/writer/OnDiskFile.cpp
-        src/streaming_archive/writer/OnDiskFile.hpp
         src/streaming_archive/writer/Segment.cpp
         src/streaming_archive/writer/Segment.hpp
         src/streaming_compression/Compressor.cpp
@@ -361,6 +359,8 @@ set(SOURCE_FILES_clg
         src/streaming_archive/reader/SegmentManager.hpp
         src/streaming_archive/writer/File.cpp
         src/streaming_archive/writer/File.hpp
+        src/streaming_archive/writer/Segment.cpp
+        src/streaming_archive/writer/Segment.hpp
         src/streaming_compression/Constants.hpp
         src/streaming_compression/Decompressor.cpp
         src/streaming_compression/Decompressor.hpp
@@ -465,6 +465,8 @@ set(SOURCE_FILES_clo
         src/streaming_archive/reader/SegmentManager.hpp
         src/streaming_archive/writer/File.cpp
         src/streaming_archive/writer/File.hpp
+        src/streaming_archive/writer/Segment.cpp
+        src/streaming_archive/writer/Segment.hpp
         src/streaming_compression/Constants.hpp
         src/streaming_compression/Decompressor.cpp
         src/streaming_compression/Decompressor.hpp

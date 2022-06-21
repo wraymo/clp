@@ -72,15 +72,19 @@ class Database(BaseModel):
 
 class Scheduler(BaseModel):
     host: str
+    jobs_poll_delay: int
+
+
+class SchedulerQueue(BaseModel):
+    host: str
+    port: int
     username: str
     password: str
-    jobs_poll_delay: int
 
 
 class ArchiveOutput(BaseModel):
     type: str  # Support only 'fs' type for now
     directory: str
-    storage_is_node_specific: bool = False
     target_archive_size: int
     target_dictionaries_size: int
     target_encoded_file_size: int
@@ -121,6 +125,7 @@ class CLPConfig(BaseModel):
     input_logs_dfs_path: str
     database: Database
     scheduler: Scheduler
+    scheduler_queue: SchedulerQueue
     archive_output: ArchiveOutput
     data_directory: str
     logs_directory: str
@@ -143,17 +148,19 @@ class CLPConfig(BaseModel):
             f'',
             f'scheduler:',
             f'  host: {self.scheduler.host}',
-            f'  username: {self.scheduler.username}',
-            f'  password: {self.scheduler.password}',
             f'  jobs_poll_delay: {self.scheduler.jobs_poll_delay}   # Seconds',
+            f'',
+            f'scheduler_queue:',
+            f'  host: {self.scheduler_queue.host}',
+            f'  port: {self.scheduler_queue.port}',
+            f'  username: {self.scheduler_queue.username}',
+            f'  password: {self.scheduler_queue.password}',
             f'',
             f'# Where archives should be output to',
             f'# Note: Only one output type may be specified',
             f'archive_output:',
             f'  type: {self.archive_output.type}',
             f'  directory: "{self.archive_output.directory}"',
-            f'',
-            f'  storage_is_node_specific: {self.archive_output.storage_is_node_specific}',
             f'',
             f'  # How much data CLP should try to compress into each archive',
             f'  target_archive_size: {self.archive_output.target_archive_size}   # {pretty_size(self.archive_output.target_archive_size)}',

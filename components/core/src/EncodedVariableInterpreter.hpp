@@ -13,14 +13,16 @@
 #include "VariableDictionaryReader.hpp"
 #include "VariableDictionaryWriter.hpp"
 
+#include "../submodules/json/single_include/nlohmann/json.hpp"
+
 using nlohmann::ordered_json;
 
 /**
  * Class to parse and encode strings into encoded variables and to interpret encoded variables back into strings. An encoded variable is one of:
  * i)   a variable dictionary ID, referring to an entry in the variable dictionary, or
  * ii)  a value, representing an integer variable exactly as it appears in the original log message, or
- * iii) a value, representing a base-10, 15-digit IEEE-754 encoded double variable, where the number of integer and fractional digits is specified in the
- *      logtype.
+ * iii) a value, representing a base-10, 16-digit number with a decimal point, where at least one digit is after the decimal point, encoded with a custom
+ *      format.
  *
  * To decode an encoded variable, the logtype specifies whether the variable is either:
  * - i/ii, or
@@ -57,13 +59,21 @@ public:
     static bool convert_string_to_representable_integer_var (const std::string& value, encoded_variable_t& encoded_var);
     /**
      * Converts the given string into a representable double variable if possible
+     * A representable double:
+     * - is base-10
+     * - has 16-digits with a decimal point, where at least one digit is after the decimal point
+     * - has an optional negative sign
      * @param value
-     * @param num_integer_digits Number of digits before the decimal point
-     * @param num_fractional_digits Number of digits after the decimal point
+     * @param encoded_var
      * @return true if was successfully converted, false otherwise
      */
-    static bool convert_string_to_representable_double_var (const std::string& value, uint8_t& num_integer_digits, uint8_t& num_fractional_digits,
-                                                            encoded_variable_t& encoded_var);
+    static bool convert_string_to_representable_double_var (const std::string& value, encoded_variable_t& encoded_var);
+    /**
+     * Converts the given encoded double into a string
+     * @param encoded_var
+     * @param value
+     */
+    static void convert_encoded_double_to_string (encoded_variable_t encoded_var, std::string& value);
 
     /**
      * Parses all variables from a message (while constructing the logtype) and encodes them (adding them to the variable dictionary if necessary)
@@ -71,9 +81,10 @@ public:
      * @param logtype_dict_entry
      * @param var_dict
      * @param encoded_vars
+     * @param var_ids
      */
     static void encode_and_add_to_dictionary (const std::string& message, LogTypeDictionaryEntry& logtype_dict_entry, VariableDictionaryWriter& var_dict,
-                                              std::vector<encoded_variable_t>& encoded_vars);
+                                              std::vector<encoded_variable_t>& encoded_vars, std::vector<variable_dictionary_id_t>& var_ids);
 
     static void encode_json_object_and_add_to_dictionary (ordered_json& object, JsonTypeDictionaryEntry& jsontype_dict_entry,
                                                           LogTypeDictionaryWriter& logtype_dict, VariableDictionaryWriter& var_dict,
@@ -82,6 +93,7 @@ public:
                                               VariableDictionaryWriter& var_dict, std::vector<encoded_variable_t>& encoded_vars);
 
     static void add_extracted_values_to_dictionary (std::vector<ordered_json*>& extracted_values, VariableDictionaryWriter& var_dict, std::vector<EncodedJsonVar>& encoded_vars);
+
     /**
      * Decodes all variables and decompresses them into a message
      * @param logtype_dict_entry

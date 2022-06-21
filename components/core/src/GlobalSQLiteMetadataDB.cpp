@@ -19,7 +19,6 @@
 // Types
 enum class ArchivesTableFieldIndexes : uint16_t {
     Id = 0,
-    StorageId,
     UncompressedSize,
     Size,
     CreatorId,
@@ -92,7 +91,9 @@ static void create_tables (const vector<std::pair<string, string>>& archive_fiel
 }
 
 static SQLitePreparedStatement get_archives_select_statement (SQLiteDB& db) {
-    auto statement_string = fmt::format("SELECT {} FROM {}", streaming_archive::cMetadataDB::Archive::Id, streaming_archive::cMetadataDB::ArchivesTableName);
+    auto statement_string = fmt::format("SELECT {} FROM {} ORDER BY {} ASC, {} ASC", streaming_archive::cMetadataDB::Archive::Id,
+                                        streaming_archive::cMetadataDB::ArchivesTableName, streaming_archive::cMetadataDB::Archive::CreatorId,
+                                        streaming_archive::cMetadataDB::Archive::CreationIx);
     SPDLOG_DEBUG("{}", statement_string);
     return db.prepare_statement(statement_string.c_str(), statement_string.length());
 }
@@ -144,10 +145,6 @@ void GlobalSQLiteMetadataDB::open () {
     vector<pair<string, string>> archive_field_names_and_types(enum_to_underlying_type(ArchivesTableFieldIndexes::Length));
     archive_field_names_and_types[enum_to_underlying_type(ArchivesTableFieldIndexes::Id)].first = streaming_archive::cMetadataDB::Archive::Id;
     archive_field_names_and_types[enum_to_underlying_type(ArchivesTableFieldIndexes::Id)].second = "TEXT PRIMARY KEY";
-
-    archive_field_names_and_types[enum_to_underlying_type(ArchivesTableFieldIndexes::StorageId)].first =
-            streaming_archive::cMetadataDB::Archive::StorageId;
-    archive_field_names_and_types[enum_to_underlying_type(ArchivesTableFieldIndexes::StorageId)].second = "TEXT";
 
     archive_field_names_and_types[enum_to_underlying_type(ArchivesTableFieldIndexes::UncompressedSize)].first =
             streaming_archive::cMetadataDB::Archive::UncompressedSize;
@@ -243,15 +240,12 @@ void GlobalSQLiteMetadataDB::close () {
     m_is_open = false;
 }
 
-void GlobalSQLiteMetadataDB::add_archive (const string& id, const string& storage_id, size_t uncompressed_size, size_t size, const string& creator_id,
-                                    size_t creation_num)
-{
+void GlobalSQLiteMetadataDB::add_archive (const string& id, size_t uncompressed_size, size_t size, const string& creator_id, size_t creation_num) {
     if (false == m_is_open) {
         throw OperationFailed(ErrorCode_NotInit, __FILENAME__, __LINE__);
     }
 
     m_insert_archive_statement->bind_text(enum_to_underlying_type(ArchivesTableFieldIndexes::Id) + 1, id, false);
-    m_insert_archive_statement->bind_text(enum_to_underlying_type(ArchivesTableFieldIndexes::StorageId) + 1, storage_id, false);
     m_insert_archive_statement->bind_int64(enum_to_underlying_type(ArchivesTableFieldIndexes::UncompressedSize) + 1, (int64_t)uncompressed_size);
     m_insert_archive_statement->bind_int64(enum_to_underlying_type(ArchivesTableFieldIndexes::Size) + 1, (int64_t)size);
     m_insert_archive_statement->bind_text(enum_to_underlying_type(ArchivesTableFieldIndexes::CreatorId) + 1, creator_id, false);
@@ -279,8 +273,10 @@ void GlobalSQLiteMetadataDB::update_metadata_for_files (const string& archive_id
 
     m_upsert_files_transaction_begin_statement->step();
     for (auto file : files) {
-        m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Id) + 1, file->get_id_as_string(), false);
-        m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId) + 1, file->get_orig_file_id_as_string(), false);
+        const auto id_as_string = file->get_id_as_string();
+        const auto orig_file_id_as_string = file->get_orig_file_id_as_string();
+        m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Id) + 1, id_as_string, false);
+        m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::OrigFileId) + 1, orig_file_id_as_string, false);
         m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Type) + 1, file->get_type_as_string(), false);
         m_upsert_file_statement->bind_text(enum_to_underlying_type(FilesTableFieldIndexes::Path) + 1, file->get_orig_path(), false);
         m_upsert_file_statement->bind_int64(enum_to_underlying_type(FilesTableFieldIndexes::BeginTimestamp) + 1, file->get_begin_ts());

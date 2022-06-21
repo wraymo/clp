@@ -180,17 +180,9 @@ namespace clp {
         return all_paths_exist;
     }
 
-    streaming_archive::writer::File* create_and_open_in_memory_file (streaming_archive::writer::Archive& archive_writer, const string& path_for_compression,
-                                                                     group_id_t group_id, const boost::uuids::uuid& orig_file_id, size_t split_ix)
-    {
-        auto* file = archive_writer.create_in_memory_file(path_for_compression, group_id, orig_file_id, split_ix);
-        archive_writer.open_file(*file);
-        return file;
-    }
-
-    void close_file_and_mark_ready_for_segment (streaming_archive::writer::Archive& archive_writer, streaming_archive::writer::File*& file) {
-        archive_writer.close_file(*file);
-        archive_writer.mark_file_ready_for_segment(file);
+    void close_file_and_append_to_segment (streaming_archive::writer::Archive& archive_writer) {
+        archive_writer.close_file();
+        archive_writer.append_file_to_segment();
     }
 
     void split_archive (streaming_archive::writer::Archive::UserConfig& archive_user_config, streaming_archive::writer::Archive& archive_writer) {
@@ -201,8 +193,9 @@ namespace clp {
     }
 
     void split_file (const string& path_for_compression, group_id_t group_id, const TimestampPattern* last_timestamp_pattern,
-                     streaming_archive::writer::Archive& archive_writer, streaming_archive::writer::File*& file)
+                     streaming_archive::writer::Archive& archive_writer)
     {
+<<<<<<< HEAD
         auto orig_file_id = file->get_orig_file_id();
         auto split_ix = file->get_split_ix();
         auto preparsed_keys = file->get_preparsed_keys();
@@ -211,14 +204,23 @@ namespace clp {
  
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
         file->initialize_preparsed_keys(preparsed_keys, archive_writer.get_column_segments_dir_path());
+=======
+        const auto& encoded_file = archive_writer.get_file();
+        auto orig_file_id = encoded_file.get_orig_file_id();
+        auto split_ix = encoded_file.get_split_ix();
+        archive_writer.set_file_is_split(true);
+        close_file_and_append_to_segment(archive_writer);
+
+        archive_writer.create_and_open_file(path_for_compression, group_id, orig_file_id, ++split_ix);
+>>>>>>> origin/main
         // Initialize the file's timestamp pattern to the previous split's pattern
-        archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
+        archive_writer.change_ts_pattern(last_timestamp_pattern);
     }
 
     void split_file_and_archive (streaming_archive::writer::Archive::UserConfig& archive_user_config, const string& path_for_compression, group_id_t group_id,
-                                 const TimestampPattern* last_timestamp_pattern, streaming_archive::writer::Archive& archive_writer,
-                                 streaming_archive::writer::File*& file)
+                                 const TimestampPattern* last_timestamp_pattern, streaming_archive::writer::Archive& archive_writer)
     {
+<<<<<<< HEAD
         auto orig_file_id = file->get_orig_file_id();
         auto split_ix = file->get_split_ix();
         auto preparsed_keys = file->get_preparsed_keys();
@@ -229,7 +231,18 @@ namespace clp {
 
         file = create_and_open_in_memory_file(archive_writer, path_for_compression, group_id, orig_file_id, ++split_ix);
         file->initialize_preparsed_keys(preparsed_keys, archive_writer.get_column_segments_dir_path());
+=======
+        const auto& encoded_file = archive_writer.get_file();
+        auto orig_file_id = encoded_file.get_orig_file_id();
+        auto split_ix = encoded_file.get_split_ix();
+        archive_writer.set_file_is_split(true);
+        close_file_and_append_to_segment(archive_writer);
+
+        split_archive(archive_user_config, archive_writer);
+
+        archive_writer.create_and_open_file(path_for_compression, group_id, orig_file_id, ++split_ix);
+>>>>>>> origin/main
         // Initialize the file's timestamp pattern to the previous split's pattern
-        archive_writer.change_ts_pattern(*file, last_timestamp_pattern);
+        archive_writer.change_ts_pattern(last_timestamp_pattern);
     }
 }

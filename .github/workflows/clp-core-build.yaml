@@ -1,4 +1,4 @@
-name: Test Building CLP Core on Ubuntu Focal, Bionic and Centos 7.4
+name: build-clp-core
 
 on:
   push:
@@ -12,17 +12,70 @@ on:
       - 'components/core/**'
       - '.github/workflows/clp-core-build.yaml'
   workflow_dispatch:
+  workflow_run:
+    workflows: ["generate-build-dependency-image"]
+    branches: [main]
+    types:
+      - completed
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BASE: ${{github.repository}}/clp-core-x86
+
+concurrency: build-${{github.ref}}
 
 jobs:
   build-focal:
     runs-on: ubuntu-latest
-    container: ghcr.io/y-scope/clp/clp-core-dependencies-x86-ubuntu-focal:main
+    container: 
+      image: ghcr.io/y-scope/clp/clp-core-dependencies-x86-ubuntu-focal:main
+      volumes:
+        - ${{github.workspace}}/build:/output
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Build CLP Core
+        id: build
         uses: ./.github/actions/clp-core-build
+      
+      - name: Upload CLP Binary artifact
+        uses: actions/upload-artifact@main
+        with:
+            name: clp-binaries-focal
+            path: ${{github.workspace}}/clp-binaries-focal.tar
+            if-no-files-found: error
+  
+  build-clp-core-image:
+    needs: build-focal
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download built CLP Binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: clp-binaries-focal
+          path: ${{github.workspace}}/binaries
+      
+      - name: Extract Binaries Bundle
+        run: tar -xvf clp-binaries-focal.tar
+        working-directory: ${{github.workspace}}/binaries
+
+      - name: Log in to the Github Packages Container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and Push Ubuntu Focal Docker Image
+        uses: ./.github/actions/clp-docker-build-push-action
+        with:
+          image_name: ${{env.IMAGE_NAME_BASE}}-ubuntu-focal
+          context: ${{github.workspace}}/binaries
+          file: components/core/tools/docker-images/clp-core-focal/Dockerfile
 
   build-bionic:
     runs-on: ubuntu-latest

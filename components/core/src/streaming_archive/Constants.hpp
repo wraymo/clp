@@ -5,7 +5,7 @@
 #define STREAMING_ARCHIVE_CONSTANTS_HPP
 
 namespace streaming_archive {
-    constexpr archive_format_version_t cArchiveFormatVersion = 1;
+    constexpr archive_format_version_t cArchiveFormatVersion = cArchiveFormatDevelopmentVersionFlag | 4;
     constexpr char cLogsDirname[] = "l";
     constexpr char cSegmentsDirname[] = "s";
     constexpr char cColumnSegmentsDirname[] = "column";
@@ -30,7 +30,6 @@ namespace streaming_archive {
 
         namespace Archive {
             constexpr char Id[] = "id";
-            constexpr char StorageId[] = "storage_id";
             constexpr char UncompressedSize[] = "uncompressed_size";
             constexpr char Size[] = "size";
             constexpr char CreatorId[] = "creator_id";

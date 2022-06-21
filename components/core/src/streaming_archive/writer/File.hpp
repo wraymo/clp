@@ -14,14 +14,14 @@
 #include "../../ErrorCode.hpp"
 #include "../../LogTypeDictionaryWriter.hpp"
 #include "../../JsonTypeDictionaryWriter.hpp"
+#include "../../PageAllocatedVector.hpp"
 #include "../../TimestampPattern.hpp"
 #include "Segment.hpp"
 #include "../../Utils.hpp"
 
 namespace streaming_archive { namespace writer {
     /**
-     * Abstract class representing a compressed log file encoded into three columns - timestamps, logtype IDs, and variables. Implementations need only
-     * define how the column data is stored on disk.
+     * Class representing a log file encoded in three columns - timestamps, logtype IDs, and variables.
      */
     class File {
     public:
@@ -43,9 +43,7 @@ namespace streaming_archive { namespace writer {
         File (const boost::uuids::uuid& id, const boost::uuids::uuid& orig_file_id, const std::string& orig_log_path, group_id_t group_id, size_t split_ix) :
                 m_type(FileType::TEXT),
                 m_id(id),
-                m_id_as_string(boost::uuids::to_string(m_id)),
                 m_orig_file_id(orig_file_id),
-                m_orig_file_id_as_string(boost::uuids::to_string(m_orig_file_id)),
                 m_orig_log_path(orig_log_path),
                 m_begin_ts(cEpochTimeMax),
                 m_end_ts(cEpochTimeMin),
@@ -59,32 +57,40 @@ namespace streaming_archive { namespace writer {
                 m_segment_variables_pos(0),
                 m_is_split(split_ix > 0),
                 m_split_ix(split_ix),
+                m_segmentation_state(SegmentationState_NotInSegment),
                 m_is_metadata_clean(false),
-                m_segmentation_state(SegmentationState_NotInSegment)
+                m_is_written_out(false),
+                m_is_open(false)
         {}
 
         // Destructor
         virtual ~File () = default;
 
-        // Methods
-        virtual bool is_open () const = 0;
-        virtual void open () = 0;
-        virtual void close () = 0;
-        virtual void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment,
-                                        std::vector<Segment*>& column_segment, std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
-                                        std::unordered_set<jsontype_dictionary_id_t>& segment_jsontype_ids,
-                                        std::unordered_set<variable_dictionary_id_t>& segment_var_ids) = 0;
-        virtual void cleanup_after_segment_insertion () = 0;
-        virtual void write_encoded_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
-                size_t num_uncompressed_bytes) = 0;
-        virtual void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
-                size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values) = 0;
-        // virtual void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
-        //         size_t num_uncompressed_bytes, std::vector<EncodedJsonVar>& extracted_values) = 0;
         void set_type (FileType type) { m_type = type; }
         FileType get_type () { return m_type; }
         std::string get_type_as_string() { return m_type == FileType::TEXT? "text": "json"; }
-        virtual void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys, std::string dir) = 0;
+        void initialize_preparsed_keys(std::map<std::vector<std::string>, std::string> preparsed_keys, std::string dir);
+        bool is_open () const { return m_is_open; }
+        void open ();
+        void close () { m_is_open = false; }
+        /**
+         * Appends the file's columns to the given segment
+         * @param logtype_dict
+         * @param segment
+         */
+        void append_to_segment (const LogTypeDictionaryWriter& logtype_dict, const JsonTypeDictionaryWriter& jsontype_dict, Segment& segment, std::vector<Segment*>& column_segment);
+        /**
+         * Writes an encoded message to the respective columns and updates the metadata of the file
+         * @param timestamp
+         * @param logtype_id
+         * @param encoded_vars
+         * @param var_ids
+         * @param num_uncompressed_bytes
+         */
+        void write_encoded_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
+                                const std::vector<variable_dictionary_id_t>& var_ids, size_t num_uncompressed_bytes);
+        void write_encoded_json_msg (epochtime_t timestamp, logtype_dictionary_id_t logtype_id, const std::vector<encoded_variable_t>& encoded_vars,
+                size_t num_uncompressed_bytes, std::vector<ordered_json*>& extracted_values);
 
         /**
          * Changes timestamp pattern in use at current message in file
@@ -108,7 +114,7 @@ namespace streaming_archive { namespace writer {
          * Gets the file's encoded size in bytes
          * @return Encoded size in bytes
          */
-        size_t get_encoded_size_in_bytes () {
+        size_t get_encoded_size_in_bytes () const {
             return m_num_messages * sizeof(epochtime_t) + m_num_messages * sizeof(logtype_dictionary_id_t) + m_num_variables * sizeof(encoded_variable_t);
         }
 
@@ -145,9 +151,9 @@ namespace streaming_archive { namespace writer {
          */
         const std::string& get_orig_path () const { return m_orig_log_path; }
         const boost::uuids::uuid& get_orig_file_id () const { return m_orig_file_id; }
-        const std::string& get_orig_file_id_as_string () const { return m_orig_file_id_as_string; }
+        std::string get_orig_file_id_as_string () const { return boost::uuids::to_string(m_orig_file_id); }
         const boost::uuids::uuid& get_id () const { return m_id; }
-        const std::string& get_id_as_string () const { return m_id_as_string; }
+        std::string get_id_as_string () const { return boost::uuids::to_string(m_id); }
         epochtime_t get_begin_ts () const { return m_begin_ts; }
         epochtime_t get_end_ts () const { return m_end_ts; }
         const std::vector<std::pair<int64_t, TimestampPattern>>& get_timestamp_patterns () const { return m_timestamp_patterns; }
@@ -164,7 +170,7 @@ namespace streaming_archive { namespace writer {
         size_t get_split_ix () const { return m_split_ix; }
         std::map<std::vector<std::string>, std::string> get_preparsed_keys () const { return m_preparsed_keys; }
 
-    protected:
+    private:
         // Types
         typedef enum {
             SegmentationState_NotInSegment = 0,
@@ -173,40 +179,6 @@ namespace streaming_archive { namespace writer {
         } SegmentationState;
         std::map<std::vector<std::string>, std::string> m_preparsed_keys;
         // Methods
-        /**
-         * Takes logtype and variable IDs from a file's logtype and variable columns and appends them to the given sets
-         * @param logtype_dict
-         * @param logtype_ids
-         * @param num_logtypes
-         * @param vars
-         * @param num_vars
-         * @param segment_logtype_ids
-         * @param segment_var_ids
-         */
-        static void append_logtype_and_var_ids_to_segment_sets (const LogTypeDictionaryWriter& logtype_dict, const logtype_dictionary_id_t* logtype_ids,
-                                                                size_t num_logtypes, const encoded_variable_t* vars, size_t num_vars,
-                                                                std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
-                                                                std::unordered_set<variable_dictionary_id_t>& segment_var_ids);
-        static void append_logtype_and_var_ids_to_segment_sets (ordered_json& object, const LogTypeDictionaryWriter &logtype_dict,
-                                                                const encoded_variable_t *vars, size_t num_vars, size_t& var_ix,
-                                                                std::unordered_set<logtype_dictionary_id_t> &segment_logtype_ids,
-                                                                std::unordered_set<variable_dictionary_id_t> &segment_var_ids);
-        static void append_jsontype_and_var_ids_to_segment_sets (const JsonTypeDictionaryWriter& jsontype_dict, const LogTypeDictionaryWriter& logtype_dict,
-                                                                 const jsontype_dictionary_id_t* jsontype_ids, size_t num_jsontypes,
-                                                                 const encoded_variable_t* vars, size_t num_vars,
-                                                                 std::unordered_set<jsontype_dictionary_id_t>& segment_json_type_ids,
-                                                                 std::unordered_set<logtype_dictionary_id_t>& segment_logtype_ids,
-                                                                 std::unordered_set<variable_dictionary_id_t>& segment_var_ids);
-
-
-        void increment_num_uncompressed_bytes (size_t num_bytes);
-        /**
-         * Increments the number of messages and the number of variables by the given values
-         * @param num_messages_to_add
-         * @param num_variables_to_add
-         */
-        void increment_num_messages_and_variables (size_t num_messages_to_add, size_t num_variables_to_add);
-        void set_last_message_timestamp (epochtime_t timestamp);
         /**
          * Sets segment-related metadata to the given values
          * @param segment_id
@@ -217,18 +189,14 @@ namespace streaming_archive { namespace writer {
         void set_segment_metadata (segment_id_t segment_id, uint64_t segment_timestamps_uncompressed_pos, uint64_t segment_logtypes_uncompressed_pos,
                                    uint64_t segment_variables_uncompressed_pos);
 
-        // Variables
-        SegmentationState m_segmentation_state;
 
     private:
-        FileType m_type;
-
         // Variables
         // Metadata
+        FileType m_type;
+
         boost::uuids::uuid m_id;
-        std::string m_id_as_string;
         boost::uuids::uuid m_orig_file_id;
-        std::string m_orig_file_id_as_string;
 
         std::string m_orig_log_path;
 
@@ -251,10 +219,16 @@ namespace streaming_archive { namespace writer {
         bool m_is_split;
         size_t m_split_ix;
 
+        // Data variables
+        std::unique_ptr<PageAllocatedVector<epochtime_t>> m_timestamps;
+        std::unique_ptr<PageAllocatedVector<logtype_dictionary_id_t>> m_logtypes;
+        std::unique_ptr<PageAllocatedVector<encoded_variable_t>> m_variables;
+
         // State variables
+        SegmentationState m_segmentation_state;
         bool m_is_metadata_clean;
-
-
+        bool m_is_written_out;
+        bool m_is_open;
     };
 } }
 
