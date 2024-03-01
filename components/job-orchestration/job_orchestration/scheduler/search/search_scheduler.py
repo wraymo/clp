@@ -198,9 +198,7 @@ def handle_pending_search_jobs(
     for job in pending_jobs:
         job_id = job.id
 
-        need_batch_scheduling = (
-            job.search_config.host is None and job.search_config.port is None
-        )
+        need_batch_scheduling = job.search_config.host is None and job.search_config.port is None
 
         if (
             need_batch_scheduling
