@@ -141,7 +141,7 @@ def create_and_monitor_job_in_db(
                 print(f"{document['original_path']}: {document['message']}", end="")
 
 
-async def worker_connection_handler(reader: asyncio.StreamReader, writer: asynciol.StreamWriter):
+async def worker_connection_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     try:
         while True:
             # Read some data from the worker and feed it to msgpack
