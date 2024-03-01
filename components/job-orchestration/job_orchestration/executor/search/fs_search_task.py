@@ -66,10 +66,18 @@ def make_clp_s_command(
         str(archives_dir),
         "--archive-id", archive_id,
         search_config.query_string,
-        "--mongodb-uri", results_cache_uri,
-        "--mongodb-collection", results_collection,
     ]
     # fmt: on
+    if search_config.host is not None and search_config.port is not None:
+        search_cmd.append("--host")
+        search_cmd.append(search_config.host)
+        search_cmd.append("--port")
+        search_cmd.append(search_config.port)
+    else:
+        search_cmd.append("--mongodb-uri")
+        search_cmd.append(results_cache_uri)
+        search_cmd.append("--mongodb-collection")
+        search_cmd.append(results_collection)
 
     if search_config.begin_timestamp is not None:
         search_cmd.append("--tge")

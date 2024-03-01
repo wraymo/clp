@@ -5,13 +5,14 @@ import asyncio
 import logging
 import multiprocessing
 import pathlib
+import socket
 import sys
 import time
 from contextlib import closing
 
 import msgpack
 import pymongo
-from clp_py_utils.clp_config import Database, ResultsCache, SEARCH_JOBS_TABLE_NAME
+from clp_py_utils.clp_config import Database, Package, ResultsCache, SEARCH_JOBS_TABLE_NAME
 from clp_py_utils.sql_adapter import SQL_Adapter
 from job_orchestration.scheduler.constants import SearchJobStatus
 from job_orchestration.scheduler.job_config import SearchConfig
@@ -70,7 +71,7 @@ async def run_function_in_process(function, *args, initializer=None, init_args=N
 
 def create_and_monitor_job_in_db(
     db_config: Database,
-    results_cache: ResultsCache,
+    results_cache: ResultsCache | None,
     wildcard_query: str,
     tags: str | None,
     begin_timestamp: int | None,
@@ -78,6 +79,8 @@ def create_and_monitor_job_in_db(
     ignore_case: bool,
     max_num_results: int,
     path_filter: str | None,
+    host: str | None,
+    port: str | None,
 ):
     search_config = SearchConfig(
         query_string=wildcard_query,
@@ -86,6 +89,8 @@ def create_and_monitor_job_in_db(
         ignore_case=ignore_case,
         max_num_results=max_num_results,
         path_filter=path_filter,
+        host=host,
+        port=port,
     )
     if tags:
         tag_list = [tag.strip().lower() for tag in tags.split(",") if tag]
@@ -122,6 +127,8 @@ def create_and_monitor_job_in_db(
 
             time.sleep(0.5)
 
+        if host is not None and port is not None:
+            return
         with pymongo.MongoClient(results_cache.get_uri()) as client:
             search_results_collection = client[results_cache.db_name][str(job_id)]
             if max_num_results <= 0:
@@ -134,7 +141,24 @@ def create_and_monitor_job_in_db(
                 print(f"{document['original_path']}: {document['message']}", end="")
 
 
+async def worker_connection_handler(reader: asyncio.StreamReader, writer: asynciol.StreamWriter):
+    try:
+        while True:
+            # Read some data from the worker and feed it to msgpack
+            buf = await reader.read(1024)
+            if b"" == buf:
+                # Worker closed
+                return
+
+            print(buf.decode(), end="")
+    except asyncio.CancelledError:
+        return
+    finally:
+        writer.close()
+
+
 async def do_search(
+    package: Package,
     db_config: Database,
     results_cache: ResultsCache,
     wildcard_query: str,
@@ -145,26 +169,83 @@ async def do_search(
     max_num_results: int,
     path_filter: str | None,
 ):
-    db_monitor_task = asyncio.ensure_future(
-        run_function_in_process(
-            create_and_monitor_job_in_db,
-            db_config,
-            results_cache,
-            wildcard_query,
-            tags,
-            begin_timestamp,
-            end_timestamp,
-            ignore_case,
-            max_num_results,
-            path_filter,
+    if package.storage_engine == "clp":
+        db_monitor_task = asyncio.ensure_future(
+            run_function_in_process(
+                create_and_monitor_job_in_db,
+                db_config,
+                results_cache,
+                wildcard_query,
+                tags,
+                begin_timestamp,
+                end_timestamp,
+                ignore_case,
+                max_num_results,
+                path_filter,
+                None,
+                None,
+            )
         )
-    )
+        # Wait for the job to complete or an error to occur
+        try:
+            await db_monitor_task
+        except asyncio.CancelledError:
+            pass
 
-    # Wait for the job to complete or an error to occur
-    try:
-        await db_monitor_task
-    except asyncio.CancelledError:
-        pass
+    else:
+        host = None
+        for ip in set(socket.gethostbyname_ex(socket.gethostname())[2]):
+            host = ip
+            break
+        if host is None:
+            logger.error("Could not determine IP of local machine.")
+            return -1
+        try:
+            server = await asyncio.start_server(
+                client_connected_cb=worker_connection_handler,
+                host=host,
+                port=0,
+                family=socket.AF_INET,
+            )
+        except asyncio.CancelledError:
+            # Search cancelled
+            return
+        port = server.sockets[0].getsockname()[1]
+
+        server_task = asyncio.ensure_future(server.serve_forever())
+
+        db_monitor_task = asyncio.ensure_future(
+            run_function_in_process(
+                create_and_monitor_job_in_db,
+                db_config,
+                None,
+                wildcard_query,
+                tags,
+                begin_timestamp,
+                end_timestamp,
+                ignore_case,
+                max_num_results,
+                path_filter,
+                host,
+                port,
+            )
+        )
+
+        # Wait for the job to complete or an error to occur
+        pending = [server_task, db_monitor_task]
+        try:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            if db_monitor_task in done:
+                server.close()
+                await server.wait_closed()
+            else:
+                logger.error("server task unexpectedly returned")
+                db_monitor_task.cancel()
+                await db_monitor_task
+        except asyncio.CancelledError:
+            server.close()
+            await server.wait_closed()
+            await db_monitor_task
 
 
 def main(argv):
@@ -222,6 +303,7 @@ def main(argv):
 
     asyncio.run(
         do_search(
+            clp_config.package,
             clp_config.database,
             clp_config.results_cache,
             parsed_args.wildcard_query,

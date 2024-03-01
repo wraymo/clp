@@ -39,3 +39,5 @@ class SearchConfig(BaseModel):
     end_timestamp: typing.Optional[int] = None
     ignore_case: bool = False
     path_filter: typing.Optional[str] = None
+    host: typing.Optional[str] = None
+    port: typing.Optional[str] = None
