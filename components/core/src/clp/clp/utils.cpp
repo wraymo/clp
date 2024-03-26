@@ -43,10 +43,9 @@ bool find_all_files_and_empty_directories(
         }
 
         // Iterate directory
-        boost::filesystem::recursive_directory_iterator iter(
-                path,
-                boost::filesystem::symlink_option::recurse
-        );
+        boost::filesystem::directory_options options
+                = boost::filesystem::directory_options::follow_directory_symlink;
+        boost::filesystem::recursive_directory_iterator iter(path, options);
         boost::filesystem::recursive_directory_iterator end;
         for (; iter != end; ++iter) {
             // Check if current entry is an empty directory or a file
@@ -58,7 +57,7 @@ bool find_all_files_and_empty_directories(
                             path_without_prefix
                     );
                     empty_directory_paths.push_back(path_without_prefix);
-                    iter.no_push();
+                    iter.disable_recursion_pending();
                 }
             } else {
                 remove_prefix_and_clean_up_path(

@@ -20,16 +20,15 @@ bool FileUtils::find_all_files(std::string const& path, std::vector<std::string>
         }
 
         // Iterate directory
-        boost::filesystem::recursive_directory_iterator iter(
-                path,
-                boost::filesystem::symlink_option::recurse
-        );
+        boost::filesystem::directory_options options
+                = boost::filesystem::directory_options::follow_directory_symlink;
+        boost::filesystem::recursive_directory_iterator iter(path, options);
         boost::filesystem::recursive_directory_iterator end;
         for (; iter != end; ++iter) {
             // Check if current entry is an empty directory or a file
             if (boost::filesystem::is_directory(iter->path())) {
                 if (boost::filesystem::is_empty(iter->path())) {
-                    iter.no_push();
+                    iter.disable_recursion_pending();
                 }
             } else {
                 file_paths.push_back(iter->path().string());
