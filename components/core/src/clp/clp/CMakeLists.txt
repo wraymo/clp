@@ -121,6 +121,8 @@ set(
         ../streaming_compression/zstd/Constants.hpp
         ../streaming_compression/zstd/Decompressor.cpp
         ../streaming_compression/zstd/Decompressor.hpp
+        ../StreamingReader.cpp
+        ../StreamingReader.hpp
         ../StringReader.cpp
         ../StringReader.hpp
         ../TimestampPattern.cpp
@@ -157,17 +159,19 @@ set(
 )
 
 add_executable(clp ${CLP_SOURCES})
-target_compile_features(clp PRIVATE cxx_std_17)
+target_compile_features(clp PRIVATE cxx_std_20)
 target_include_directories(clp PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
 target_link_libraries(clp
         PRIVATE
         Boost::filesystem Boost::iostreams Boost::program_options
+        CURL::libcurl
         fmt::fmt
         log_surgeon::log_surgeon
         spdlog::spdlog
         ${sqlite_LIBRARY_DEPENDENCIES}
         LibArchive::LibArchive
         MariaDBClient::MariaDBClient
+        OpenSSL::SSL OpenSSL::Crypto
         ${STD_FS_LIBS}
         clp::string_utils
         yaml-cpp::yaml-cpp

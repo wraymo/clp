@@ -137,6 +137,23 @@ else()
     message(FATAL_ERROR "Could not find ${CLP_LIBS_STRING} libraries for LibArchive")
 endif()
 
+# Find and setup libcurl
+# By default, CURL does not provide static libraries
+find_package(CURL REQUIRED)
+if(CURL_FOUND)
+    message(STATUS "Found curl ${CURL_VERSION_STRING}")
+else()
+    message(FATAL_ERROR "Could not found CURL")
+endif()
+
+# Find OpenSSL
+find_package(OpenSSL REQUIRED)
+if (OPENSSL_FOUND)
+    message(STATUS "Found OpenSSL (${OPENSSL_VERSION})")
+else ()
+    message(FATAL_ERROR "OpenSSL not found")
+endif ()
+
 # Add log surgeon
 add_subdirectory(submodules/log-surgeon EXCLUDE_FROM_ALL)
 
