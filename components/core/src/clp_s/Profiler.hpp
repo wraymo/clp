@@ -6,7 +6,7 @@
 
 namespace clp_s {
 
-enum class SearchProfilingStage : int {
+enum class ProfilingStage : int {
     ReadSchemaTree,
     ReadSchemaMap,
     TransformQuery,
@@ -16,7 +16,9 @@ enum class SearchProfilingStage : int {
     SearchVariableDictionary,
     SearchLogTypeDictionary,
     ScanAndFilter,
+    InitializeSerializer,
     MarshalResults,
+    SearchArchive,
     Total
 };
 

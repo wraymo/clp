@@ -4,6 +4,7 @@
 
 #include "BufferViewReader.hpp"
 #include "Schema.hpp"
+#include "Profiler.hpp"
 
 namespace clp_s {
 void SchemaReader::append_column(BaseColumnReader* column_reader) {
@@ -57,6 +58,7 @@ void SchemaReader::load(ZstdDecompressor& decompressor, size_t uncompressed_size
 }
 
 void SchemaReader::generate_json_string() {
+    ProfilerManager::start(ProfilingStage::MarshalResults);
     m_json_serializer.reset();
     m_json_serializer.begin_document();
     size_t column_id_index = 0;
@@ -171,6 +173,7 @@ void SchemaReader::generate_json_string() {
     }
 
     m_json_serializer.end_document();
+    ProfilerManager::stop(ProfilingStage::MarshalResults);
 }
 
 bool SchemaReader::get_next_message(std::string& message) {
@@ -541,6 +544,7 @@ size_t SchemaReader::generate_structured_object_template(
 }
 
 void SchemaReader::initialize_serializer() {
+    ProfilerManager::start(ProfilingStage::InitializeSerializer);
     if (m_serializer_initialized) {
         return;
     }
@@ -561,6 +565,7 @@ void SchemaReader::initialize_serializer() {
     // TODO: this code will have to change once we allow mixing log lines parsed by different
     // parsers.
     generate_json_template(0);
+    ProfilerManager::stop(ProfilingStage::InitializeSerializer);
 }
 
 void SchemaReader::generate_json_template(int32_t id) {

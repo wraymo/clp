@@ -18,6 +18,7 @@
 #include "Defs.hpp"
 #include "JsonConstructor.hpp"
 #include "JsonParser.hpp"
+#include "Profiler.hpp"
 #include "ReaderUtils.hpp"
 #include "search/AddTimestampConditions.hpp"
 #include "search/ConvertToExists.hpp"
@@ -35,6 +36,8 @@
 #include "Utils.hpp"
 
 using namespace clp_s::search;
+using clp_s::ProfilingStage;
+using clp_s::ProfilerManager;
 using clp_s::cArchiveFormatDevelopmentVersionFlag;
 using clp_s::cEpochTimeMax;
 using clp_s::cEpochTimeMin;
@@ -127,6 +130,7 @@ bool search_archive(
         std::shared_ptr<Expression> expr,
         int reducer_socket_fd
 ) {
+    ProfilerManager::start(ProfilingStage::SearchArchive);
     auto const& query = command_line_arguments.get_query();
 
     auto timestamp_dict = archive_reader->read_timestamp_dictionary();
@@ -146,6 +150,7 @@ bool search_archive(
         return false;
     }
 
+    ProfilerManager::start(ProfilingStage::TransformQuery);
     OrOfAndForm standardize_pass;
     if (expr = standardize_pass.run(expr); std::dynamic_pointer_cast<EmptyExpr>(expr)) {
         SPDLOG_ERROR("Query '{}' is logically false", query);
@@ -178,6 +183,7 @@ bool search_archive(
         SPDLOG_INFO("No matching schemas for query '{}'", query);
         return true;
     }
+    ProfilerManager::stop(ProfilingStage::TransformQuery);
 
     std::unique_ptr<OutputHandler> output_handler;
     try {
@@ -230,7 +236,9 @@ bool search_archive(
             std::move(output_handler),
             command_line_arguments.get_ignore_case()
     );
-    return output.filter();
+    auto ret = output.filter();
+    ProfilerManager::stop(ProfilingStage::SearchArchive);
+    return ret;
 }
 }  // namespace
 
@@ -244,6 +252,7 @@ int main(int argc, char const* argv[]) {
         return 1;
     }
 
+    ProfilerManager::start(ProfilingStage::Total);
     clp_s::TimestampPattern::init();
 
     CommandLineArguments command_line_arguments("clp-s");
@@ -328,7 +337,6 @@ int main(int argc, char const* argv[]) {
                 return 1;
             }
         }
-
         auto const& archive_id = command_line_arguments.get_archive_id();
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
         if (false == archive_id.empty()) {
@@ -362,6 +370,7 @@ int main(int argc, char const* argv[]) {
             }
         }
     }
-
+    ProfilerManager::stop(ProfilingStage::Total);
+    ProfilerManager::print_elapsed_time();
     return 0;
 }

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "../../clp/type_utils.hpp"
+#include "../Profiler.hpp"
 #include "../Utils.hpp"
 #include "AndExpr.hpp"
 #include "clp_search/EncodedVariableInterpreter.hpp"
@@ -51,8 +52,12 @@ bool Output::filter() {
         return true;
     }
 
+    ProfilerManager::start(ProfilingStage::ReadVariableDictionary);
     m_var_dict = m_archive_reader->read_variable_dictionary();
+    ProfilerManager::stop(ProfilingStage::ReadVariableDictionary);
+    ProfilerManager::start(ProfilingStage::ReadLogTypeDictionary);
     m_log_dict = m_archive_reader->read_log_type_dictionary();
+    ProfilerManager::stop(ProfilingStage::ReadLogTypeDictionary);
 
     if (has_array) {
         if (has_array_search) {
@@ -84,11 +89,13 @@ bool Output::filter() {
 
         add_wildcard_columns_to_searched_columns();
 
+        ProfilerManager::start(ProfilingStage::ReadEncodedTable);
         auto& reader = m_archive_reader->read_table(
                 schema_id,
                 m_output_handler->should_output_metadata(),
                 m_should_marshal_records
         );
+        ProfilerManager::stop(ProfilingStage::ReadEncodedTable);
         reader.initialize_filter(this);
 
         if (m_output_handler->should_output_metadata()) {
@@ -176,9 +183,12 @@ std::string& Output::get_cached_decompressed_unstructured_array(int32_t column_i
 }
 
 bool Output::filter(uint64_t cur_message) {
+    ProfilerManager::start(ProfilingStage::ScanAndFilter);
     m_cur_message = cur_message;
     m_extracted_unstructured_arrays.clear();
-    return evaluate(m_expr.get(), m_schema);
+    auto ret = evaluate(m_expr.get(), m_schema);
+    ProfilerManager::stop(ProfilingStage::ScanAndFilter);
+    return ret;
 }
 
 bool Output::evaluate(Expression* expr, int32_t schema) {
@@ -891,6 +901,7 @@ void Output::populate_string_queries(std::shared_ptr<Expression> const& expr) {
                 return;
             }
 
+            ProfilerManager::start(ProfilingStage::SearchLogTypeDictionary);
             // search on log type dictionary
             m_string_query_map.emplace(
                     query_string,
@@ -902,6 +913,7 @@ void Output::populate_string_queries(std::shared_ptr<Expression> const& expr) {
                             false
                     )
             );
+            ProfilerManager::stop(ProfilingStage::SearchLogTypeDictionary);
         }
         SubQuery sub_query;
         if (filter->get_column()->matches_type(LiteralType::VarStringT)) {
@@ -912,6 +924,7 @@ void Output::populate_string_queries(std::shared_ptr<Expression> const& expr) {
             }
 
             std::unordered_set<int64_t>& matching_vars = m_string_var_match_map[query_string];
+            ProfilerManager::start(ProfilingStage::SearchVariableDictionary);
             if (false == StringUtils::has_unescaped_wildcards(query_string)) {
                 std::string unescaped_query_string;
                 bool escape = false;
@@ -955,6 +968,7 @@ void Output::populate_string_queries(std::shared_ptr<Expression> const& expr) {
                     }
                 }
             }
+            ProfilerManager::stop(ProfilingStage::SearchVariableDictionary);
         }
     }
 }

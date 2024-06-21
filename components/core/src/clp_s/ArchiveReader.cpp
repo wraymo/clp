@@ -5,6 +5,7 @@
 
 #include "archive_constants.hpp"
 #include "ReaderUtils.hpp"
+#include "Profiler.hpp"
 
 using std::string_view;
 
@@ -24,8 +25,13 @@ void ArchiveReader::open(string_view archives_dir, string_view archive_id) {
     m_array_dict = ReaderUtils::get_array_dictionary_reader(archive_path_str);
     m_timestamp_dict = ReaderUtils::get_timestamp_dictionary_reader(archive_path_str);
 
+    ProfilerManager::start(ProfilingStage::ReadSchemaTree);
     m_schema_tree = ReaderUtils::read_schema_tree(archive_path_str);
+    ProfilerManager::stop(ProfilingStage::ReadSchemaTree);
+
+    ProfilerManager::start(ProfilingStage::ReadSchemaMap);
     m_schema_map = ReaderUtils::read_schemas(archive_path_str);
+    ProfilerManager::stop(ProfilingStage::ReadSchemaMap);
 
     m_tables_file_reader.open(archive_path_str + constants::cArchiveTablesFile);
     m_table_metadata_file_reader.open(archive_path_str + constants::cArchiveTableMetadataFile);
