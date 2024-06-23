@@ -3,8 +3,8 @@
 #include <stack>
 
 #include "BufferViewReader.hpp"
-#include "Schema.hpp"
 #include "Profiler.hpp"
+#include "Schema.hpp"
 
 namespace clp_s {
 void SchemaReader::append_column(BaseColumnReader* column_reader) {

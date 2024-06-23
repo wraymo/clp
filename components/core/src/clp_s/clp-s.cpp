@@ -36,12 +36,12 @@
 #include "Utils.hpp"
 
 using namespace clp_s::search;
-using clp_s::ProfilingStage;
-using clp_s::ProfilerManager;
 using clp_s::cArchiveFormatDevelopmentVersionFlag;
 using clp_s::cEpochTimeMax;
 using clp_s::cEpochTimeMin;
 using clp_s::CommandLineArguments;
+using clp_s::ProfilerManager;
+using clp_s::ProfilingStage;
 
 namespace {
 /**
