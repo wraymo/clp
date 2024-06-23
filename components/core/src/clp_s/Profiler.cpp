@@ -7,7 +7,7 @@
 namespace clp_s {
 std::array<Profiler, static_cast<int>(ProfilingStage::Total) + 1> ProfilerManager::m_profilers;
 
-#ifdef ENABLE_PROFILING
+#ifdef PROF_ENABLED
 void Profiler::start() {
     m_start = std::chrono::high_resolution_clock::now();
 }
