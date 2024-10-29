@@ -65,6 +65,11 @@ public:
                || m_matching_nodes.contains(node_id);
     }
 
+    /**
+     * @return the list of matching nodes
+     */
+    std::vector<int32_t> const& get_matching_nodes_list() const { return m_matching_nodes_list; }
+
 private:
     /**
      * Resolves an individual column as described by the `resolve_columns` method.
@@ -74,6 +79,7 @@ private:
     void resolve_column(std::shared_ptr<SchemaTree> tree, std::shared_ptr<ColumnDescriptor> column);
 
     std::vector<std::shared_ptr<ColumnDescriptor>> m_selected_columns;
+    std::vector<int32_t> m_matching_nodes_list;
     absl::flat_hash_set<int32_t> m_matching_nodes;
     ProjectionMode m_projection_mode{ProjectionMode::ReturnAllColumns};
 };

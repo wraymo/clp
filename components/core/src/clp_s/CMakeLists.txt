@@ -147,6 +147,8 @@ set(
         search/OutputHandler.hpp
         search/Projection.cpp
         search/Projection.hpp
+        search/QueryRunner.cpp
+        search/QueryRunner.hpp
         search/SchemaMatch.cpp
         search/SchemaMatch.hpp
         search/SearchUtils.cpp
@@ -179,6 +181,160 @@ set(
         ../reducer/RecordTypedKeyIterator.hpp
         ../reducer/types.hpp
 )
+
+set(
+        CLP_S_SEARCH_LIB_SOURCES
+        "${PROJECT_SOURCE_DIR}/submodules/date/include/date/date.h"
+        archive_constants.hpp
+        ArchiveReader.cpp
+        ArchiveReader.hpp
+        BufferViewReader.hpp
+        ColumnReader.cpp
+        ColumnReader.hpp
+        ColumnWriter.cpp
+        ColumnWriter.hpp
+        Compressor.hpp
+        Decompressor.hpp
+        Defs.hpp
+        DictionaryEntry.cpp
+        DictionaryEntry.hpp
+        DictionaryReader.hpp
+        DictionaryWriter.cpp
+        DictionaryWriter.hpp
+        ErrorCode.hpp
+        FileReader.cpp
+        FileReader.hpp
+        FileWriter.cpp
+        FileWriter.hpp
+        JsonSerializer.hpp
+        ParsedMessage.hpp
+        ReaderUtils.cpp
+        ReaderUtils.hpp
+        Schema.cpp
+        Schema.hpp
+        SchemaMap.cpp
+        SchemaMap.hpp
+        SchemaReader.cpp
+        SchemaReader.hpp
+        SchemaTree.cpp
+        SchemaTree.hpp
+        SchemaWriter.cpp
+        SchemaWriter.hpp
+        TimestampDictionaryReader.cpp
+        TimestampDictionaryReader.hpp
+        TimestampEntry.cpp
+        TimestampEntry.hpp
+        TimestampPattern.cpp
+        TimestampPattern.hpp
+        TraceableException.hpp
+        Utils.cpp
+        Utils.hpp
+        VariableEncoder.cpp
+        VariableEncoder.hpp
+        VariableDecoder.cpp
+        VariableDecoder.hpp
+        ZstdCompressor.cpp
+        ZstdCompressor.hpp
+        ZstdDecompressor.cpp
+        ZstdDecompressor.hpp
+        search/AddTimestampConditions.cpp
+        search/AddTimestampConditions.hpp
+        search/AndExpr.cpp
+        search/AndExpr.hpp
+        search/BooleanLiteral.cpp
+        search/BooleanLiteral.hpp
+        search/Cursor.cpp
+        search/Cursor.hpp
+        search/clp_search/EncodedVariableInterpreter.cpp
+        search/clp_search/EncodedVariableInterpreter.hpp
+        search/clp_search/Grep.cpp
+        search/clp_search/Grep.hpp
+        search/clp_search/Query.cpp
+        search/clp_search/Query.hpp
+        search/ColumnDescriptor.cpp
+        search/ColumnDescriptor.hpp
+        search/ConstantProp.cpp
+        search/ConstantProp.hpp
+        search/ConvertToExists.cpp
+        search/ConvertToExists.hpp
+        search/DateLiteral.cpp
+        search/DateLiteral.hpp
+        search/EmptyExpr.cpp
+        search/EmptyExpr.hpp
+        search/EvaluateTimestampIndex.cpp
+        search/EvaluateTimestampIndex.hpp
+        search/Expression.cpp
+        search/Expression.hpp
+        search/FilterExpr.cpp
+        search/FilterExpr.hpp
+        search/FilterOperation.hpp
+        search/Integral.cpp
+        search/Integral.hpp
+        search/Literal.hpp
+        search/NarrowTypes.cpp
+        search/NarrowTypes.hpp
+        search/NullLiteral.cpp
+        search/NullLiteral.hpp
+        search/OrExpr.cpp
+        search/OrExpr.hpp
+        search/OrOfAndForm.cpp
+        search/OrOfAndForm.hpp
+        search/Projection.cpp
+        search/Projection.hpp
+        search/QueryRunner.cpp
+        search/QueryRunner.hpp
+        search/SchemaMatch.cpp
+        search/SchemaMatch.hpp
+        search/SearchUtils.cpp
+        search/SearchUtils.hpp
+        search/StringLiteral.cpp
+        search/StringLiteral.hpp
+        search/Transformation.hpp
+        search/Value.hpp
+        search/test.cpp
+)
+
+add_executable(
+        clp-s-search
+        ${CLP_S_SEARCH_LIB_SOURCES}
+)
+target_compile_features(clp-s-search PRIVATE cxx_std_20)
+target_link_libraries(
+        clp-s-search
+        PRIVATE
+        Boost::filesystem Boost::iostreams Boost::program_options
+        absl::flat_hash_map
+        clp::string_utils
+        kql
+        simdjson
+        yaml-cpp::yaml-cpp
+        ZStd::ZStd
+        spdlog::spdlog
+)
+target_include_directories(clp-s-search PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
+set_target_properties(
+        clp-s-search
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+)
+#target_compile_features(clp-s-lib PRIVATE cxx_std_20)
+#
+#add_executable(
+#        clp-s-search
+#        search/test.cpp
+#)
+#target_compile_features(clp-s-search PRIVATE cxx_std_20)
+#target_link_libraries(
+#        clp-s-search
+#        PRIVATE
+#        clp-s-lib
+#)
+#set_target_properties(
+#        clp-s-search
+#        PROPERTIES
+#        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+#)
+
 
 add_executable(
         clp-s

@@ -14,8 +14,16 @@
 #include "search/Projection.hpp"
 #include "ZstdDecompressor.hpp"
 
+using ColumnData = std::variant<std::vector<int64_t>,
+                                std::vector<bool>,
+                                std::vector<std::string>,
+                                std::vector<double>>;
 namespace clp_s {
 class SchemaReader;
+
+namespace search {
+class QueryRunner;
+}  // namespace search
 
 class FilterClass {
 public:
@@ -105,6 +113,8 @@ public:
         m_global_schema_tree = std::move(schema_tree);
         m_projection = std::move(projection);
         m_should_marshal_records = should_marshal_records;
+        m_projected_columns.clear();
+        m_projected_types.clear();
     }
 
     /**
@@ -169,10 +179,34 @@ public:
     );
 
     /**
+     * Populates the column vectors with the values of the message at the given index
+     * @param message_index
+     * @param vector_index
+     * @param column_vectors
+     * @return
+     */
+//    bool get_message(
+//            uint64_t message_index,
+//            uint64_t vector_index,
+//            std::vector<VectorPtr>& column_vectors
+//    );
+    void get_message(
+            uint64_t message_index,
+            uint64_t vector_index,
+            std::vector<ColumnData>& column_vectors
+    );
+
+            /**
      * Initializes the filter
      * @param filter
      */
     void initialize_filter(FilterClass* filter);
+
+    /**
+     * Initializes the query runner
+     * @param query_runner
+     */
+    void initialize_query_runner(std::shared_ptr<search::QueryRunner> query_runner);
 
     /**
      * Marks a column as timestamp
@@ -198,6 +232,11 @@ public:
      * @return true if all records in this table have been iterated over, false otherwise
      */
     bool done() const { return m_cur_message >= m_num_messages; }
+
+    /**
+     * @return the number of messages in the table
+     */
+    uint64_t get_num_messages() const { return m_num_messages; }
 
 private:
     /**
@@ -281,6 +320,8 @@ private:
     std::unordered_map<int32_t, BaseColumnReader*> m_column_map;
     std::vector<BaseColumnReader*> m_columns;
     std::vector<BaseColumnReader*> m_reordered_columns;
+    std::vector<BaseColumnReader*> m_projected_columns;
+    std::vector<NodeType> m_projected_types;
     std::unique_ptr<char[]> m_table_buffer;
     size_t m_table_buffer_size{0};
 

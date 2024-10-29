@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include <spdlog/spdlog.h>
+
 #include "SearchUtils.hpp"
 
 namespace clp_s::search {
@@ -51,7 +53,7 @@ void Projection::resolve_column(
      * In light of that we implement a simple version of column resolution here that does exactly
      * what we need.
      */
-
+    auto cur_matching_nodes_size = m_matching_nodes.size();
     auto cur_node_id = tree->get_root_node_id();
     auto it = column->descriptor_begin();
     while (it != column->descriptor_end()) {
@@ -74,6 +76,7 @@ void Projection::resolve_column(
             matched_any = true;
             if (last_token && column->matches_type(node_to_literal_type(child_node.get_type()))) {
                 m_matching_nodes.insert(child_node_id);
+                m_matching_nodes_list.push_back(child_node_id);
             } else if (false == last_token) {
                 cur_node_id = child_node_id;
                 break;
@@ -83,6 +86,10 @@ void Projection::resolve_column(
         if (false == matched_any) {
             break;
         }
+    }
+
+    if (cur_matching_nodes_size == m_matching_nodes.size()) {
+        m_matching_nodes_list.push_back(-1);
     }
 }
 }  // namespace clp_s::search

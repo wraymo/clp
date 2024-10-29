@@ -4,6 +4,7 @@
 
 #include "BufferViewReader.hpp"
 #include "Schema.hpp"
+#include "search/QueryRunner.hpp"
 
 namespace clp_s {
 void SchemaReader::append_column(BaseColumnReader* column_reader) {
@@ -219,6 +220,97 @@ bool SchemaReader::get_next_message(std::string& message, FilterClass* filter) {
     return false;
 }
 
+// bool SchemaReader::get_message(
+//         uint64_t message_index,
+//         uint64_t vector_index,
+//         std::vector<VectorPtr>& column_vectors
+//) {
+//     for (size_t i = 0; i < column_vectors.size(); ++i) {
+//         switch (m_projected_types[i]) {
+//             case NodeType::Integer: {
+//                 auto vector = column_vectors[i]->asFlatVector<int64_t>();
+//                 vector->set(
+//                         vector_index,  // change the index later.
+//                         std::get<int64_t>(m_projected_columns[i]->extract_value(message_index))
+//                 );
+//                 vector->setNull(vector_index, false);
+//                 break;
+//             }
+//             case NodeType::Float: {
+//                 auto float_vector = column_vectors[i]->asFlatVector<double>();
+//                 float_vector->set(
+//                         vector_index,
+//                         std::get<double>(m_projected_columns[i]->extract_value(message_index))
+//                 );
+//                 float_vector->setNull(vector_index, false);
+//                 break;
+//             }
+//             case NodeType::Boolean: {
+//                 auto bool_vector = column_vectors[i]->asFlatVector<bool>();
+//                 bool_vector->set(
+//                         vector_index,
+//                         std::get<uint8_t>(m_projected_columns[i]->extract_value(message_index))
+//                         != 0
+//                 );
+//                 bool_vector->setNull(vector_index, false);
+//                 break;
+//             }
+//             case NodeType::ClpString:
+//             case NodeType::VarString:
+//                 auto string_vector = column_vectors[i]->asFlatVector<StringView>();
+//                 string_vector->set(
+//                         vector_index,
+//                         std::get<std::string>(m_projected_columns[i]->extract_value(message_index))
+//                 );
+//                 string_vector->setNull(vector_index, false);
+//                 break;
+//             case NodeType::NullValue:
+//                 column_vectors[i]->setNull(vector_index, true);
+//                 break;
+//         }
+//     }
+// }
+
+void SchemaReader::get_message(
+        uint64_t message_index,
+        uint64_t vector_index,
+        std::vector<ColumnData>& column_vectors
+) {
+    for (size_t i = 0; i < column_vectors.size(); ++i) {
+        switch (m_projected_types[i]) {
+            case NodeType::Integer: {
+                auto &vector = std::get<std::vector<int64_t>>(column_vectors[i]);
+                vector[vector_index]
+                        = std::get<int64_t>(m_projected_columns[i]->extract_value(message_index));
+                break;
+            }
+            case NodeType::Float: {
+                auto &vector = std::get<std::vector<double>>(column_vectors[i]);
+                vector[vector_index]
+                        = std::get<double>(m_projected_columns[i]->extract_value(message_index));
+                break;
+            }
+            case NodeType::Boolean: {
+                auto &vector = std::get<std::vector<bool>>(column_vectors[i]);
+                vector[vector_index]
+                        = std::get<uint8_t>(m_projected_columns[i]->extract_value(message_index))
+                          != 0;
+                break;
+            }
+            case NodeType::ClpString:
+            case NodeType::VarString:
+            case NodeType::UnstructuredArray: {
+                auto &vector = std::get<std::vector<std::string>>(column_vectors[i]);
+                vector[vector_index]
+                        = std::get<std::string>(m_projected_columns[i]->extract_value(message_index));
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 bool SchemaReader::get_next_message_with_timestamp(
         std::string& message,
         epochtime_t& timestamp,
@@ -255,6 +347,24 @@ bool SchemaReader::get_next_message_with_timestamp(
 
 void SchemaReader::initialize_filter(FilterClass* filter) {
     filter->init(this, m_schema_id, m_columns);
+}
+
+void SchemaReader::initialize_query_runner(std::shared_ptr<search::QueryRunner> query_runner) {
+    // store the ordered node ids from projection and find the column
+    auto matching_nodes_list = m_projection->get_matching_nodes_list();
+    for (int32_t node_id : matching_nodes_list) {
+        auto column = m_column_map.find(node_id);
+        if (m_column_map.end() != column) {
+            auto node_type = m_global_schema_tree->get_node(node_id).get_type();
+            m_projected_columns.push_back(column->second);
+            m_projected_types.push_back(node_type);
+        } else {
+            m_projected_columns.push_back(nullptr);
+            m_projected_types.push_back(NodeType::Unknown);
+        }
+    }
+
+    query_runner->initialize_filter(this, m_columns);
 }
 
 void SchemaReader::generate_local_tree(int32_t global_id) {
