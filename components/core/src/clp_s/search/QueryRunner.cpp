@@ -65,18 +65,21 @@ std::string& QueryRunner::get_cached_decompressed_unstructured_array(int32_t col
     return rit.first->second;
 }
 
-//size_t QueryRunner::fetch_next(size_t num_rows, std::vector<VectorPtr>& column_vectors) {
-//    size_t num_rows_fetched = 0;
-//    while (m_cur_message < m_num_messages) {
-//        m_extracted_unstructured_arrays.clear();
-//        if (evaluate(m_expr.get(), m_schema)) {
-//            m_schema_reader->get_message(m_cur_message, num_rows_fetched, column_vectors);
-//            num_rows_fetched += 1;
-//        }
-//        m_cur_message += 1;
-//    }
-//    return num_rows_fetched;
-//}
+// size_t QueryRunner::fetch_next(size_t num_rows, std::vector<VectorPtr>& column_vectors) {
+//     size_t num_rows_fetched = 0;
+//     while (m_cur_message < m_num_messages) {
+//         m_extracted_unstructured_arrays.clear();
+//         if (evaluate(m_expr.get(), m_schema)) {
+//             m_schema_reader->get_message(m_cur_message, num_rows_fetched, column_vectors);
+//             num_rows_fetched += 1;
+//         }
+//         m_cur_message += 1;
+// if (num_rows_fetched >= num_rows) {
+//     break;
+// }
+//     }
+//     return num_rows_fetched;
+// }
 
 size_t QueryRunner::fetch_next(size_t num_rows, std::vector<ColumnData>& column_vectors) {
     size_t num_rows_fetched = 0;

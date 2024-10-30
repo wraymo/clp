@@ -8,9 +8,9 @@
 
 #include <date/include/date/date.h>
 #include <spdlog/spdlog.h>
-#include <string_utils/string_utils.hpp>
 
-using clp::string_utils::convert_string_to_int;
+#include "Utils.hpp"
+
 using std::string;
 using std::to_string;
 using std::vector;
@@ -810,7 +810,9 @@ bool TimestampPattern::parse_timestamp(
                     // Note: "timestamp" is how the result is returned by reference
                     // Note: this format will also accept any integer timestamp (including UNIX
                     // epoch seconds and nanoseconds as well)
-                    if (line_ix > 0 || false == convert_string_to_int(line, timestamp)) {
+                    if (line_ix > 0
+                        || false == StringUtils::convert_string_to_int64(line, timestamp))
+                    {
                         return false;
                     }
                     timestamp_begin_pos = 0;
@@ -835,14 +837,17 @@ bool TimestampPattern::parse_timestamp(
 
                     auto timestamp_view = std::string_view(line);
                     if (false
-                        == convert_string_to_int(timestamp_view.substr(0, dot_position), timestamp))
+                        == StringUtils::convert_string_to_int64(
+                                timestamp_view.substr(0, dot_position),
+                                timestamp
+                        ))
                     {
                         return false;
                     }
 
                     epochtime_t timestamp_nanoseconds;
                     if (false
-                        == convert_string_to_int(
+                        == StringUtils::convert_string_to_int64(
                                 timestamp_view.substr(nanosecond_start, cNanosecondDigits),
                                 timestamp_nanoseconds
                         ))

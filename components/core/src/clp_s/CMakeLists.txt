@@ -304,7 +304,6 @@ target_link_libraries(
         PRIVATE
         Boost::filesystem Boost::iostreams Boost::program_options
         absl::flat_hash_map
-        clp::string_utils
         kql
         simdjson
         yaml-cpp::yaml-cpp
