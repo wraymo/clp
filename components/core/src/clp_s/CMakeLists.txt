@@ -191,8 +191,6 @@ set(
         BufferViewReader.hpp
         ColumnReader.cpp
         ColumnReader.hpp
-        ColumnWriter.cpp
-        ColumnWriter.hpp
         Compressor.hpp
         Decompressor.hpp
         Defs.hpp
@@ -218,8 +216,6 @@ set(
         SchemaReader.hpp
         SchemaTree.cpp
         SchemaTree.hpp
-        SchemaWriter.cpp
-        SchemaWriter.hpp
         TimestampDictionaryReader.cpp
         TimestampDictionaryReader.hpp
         TimestampEntry.cpp
@@ -294,7 +290,7 @@ set(
         search/test.cpp
 )
 
-add_executable(
+add_library(
         clp-s-search
         ${CLP_S_SEARCH_LIB_SOURCES}
 )
