@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -11,6 +12,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include "../clp/CurlGlobalInstance.hpp"
 #include "../clp/GlobalMySQLMetadataDB.hpp"
 #include "../clp/streaming_archive/ArchiveMetadata.hpp"
 #include "../reducer/network_utils.hpp"
@@ -18,7 +20,6 @@
 #include "Defs.hpp"
 #include "JsonConstructor.hpp"
 #include "JsonParser.hpp"
-#include "ReaderUtils.hpp"
 #include "search/AddTimestampConditions.hpp"
 #include "search/ConvertToExists.hpp"
 #include "search/EmptyExpr.hpp"
@@ -46,9 +47,13 @@ namespace {
 /**
  * Compresses the input files specified by the command line arguments into an archive.
  * @param command_line_arguments
+ * @param input_config
  * @return Whether compression was successful
  */
-bool compress(CommandLineArguments const& command_line_arguments);
+bool compress(
+        CommandLineArguments const& command_line_arguments,
+        clp_s::InputOption const& input_config
+);
 
 /**
  * Decompresses the archive specified by the given JsonConstructorOption.
@@ -71,7 +76,10 @@ bool search_archive(
         int reducer_socket_fd
 );
 
-bool compress(CommandLineArguments const& command_line_arguments) {
+bool compress(
+        CommandLineArguments const& command_line_arguments,
+        clp_s::InputOption const& input_config
+) {
     auto archives_dir = std::filesystem::path(command_line_arguments.get_archives_dir());
 
     // Create output directory in case it doesn't exist
@@ -91,10 +99,13 @@ bool compress(CommandLineArguments const& command_line_arguments) {
     option.archives_dir = archives_dir.string();
     option.target_encoded_size = command_line_arguments.get_target_encoded_size();
     option.max_document_size = command_line_arguments.get_max_document_size();
+    option.min_table_size = command_line_arguments.get_minimum_table_size();
     option.compression_level = command_line_arguments.get_compression_level();
     option.timestamp_key = command_line_arguments.get_timestamp_key();
     option.print_archive_stats = command_line_arguments.print_archive_stats();
+    option.single_file_archive = command_line_arguments.get_single_file_archive();
     option.structurize_arrays = command_line_arguments.get_structurize_arrays();
+    option.input_config = input_config;
 
     auto const& db_config_container = command_line_arguments.get_metadata_db_config();
     if (db_config_container.has_value()) {
@@ -131,7 +142,7 @@ bool search_archive(
 ) {
     auto const& query = command_line_arguments.get_query();
 
-    auto timestamp_dict = archive_reader->read_timestamp_dictionary();
+    auto timestamp_dict = archive_reader->get_timestamp_dictionary();
     AddTimestampConditions add_timestamp_conditions(
             timestamp_dict->get_authoritative_timestamp_tokenized_column(),
             command_line_arguments.get_search_begin_ts(),
@@ -267,6 +278,7 @@ int main(int argc, char const* argv[]) {
 
     clp_s::TimestampPattern::init();
     mongocxx::instance const mongocxx_instance{};
+    clp::CurlGlobalInstance const curl_instance{};
 
     CommandLineArguments command_line_arguments("clp-s");
     auto parsing_result = command_line_arguments.parse_arguments(argc, argv);
@@ -280,13 +292,24 @@ int main(int argc, char const* argv[]) {
             break;
     }
 
+    clp_s::InputOption input_config;
+    input_config.source = command_line_arguments.get_input_source();
+    if (clp_s::InputSource::S3 == input_config.source) {
+        auto& s3_config = input_config.s3_config;
+        s3_config.auth_method = clp_s::S3AuthMethod::SignedUrl;
+        s3_config.access_key_id = std::getenv("AWS_ACCESS_KEY_ID");
+        s3_config.secret_access_key = std::getenv("AWS_SECRET_ACCESS_KEY");
+    }
+
     if (CommandLineArguments::Command::Compress == command_line_arguments.get_command()) {
-        if (false == compress(command_line_arguments)) {
+        if (false == compress(command_line_arguments, input_config)) {
             return 1;
         }
     } else if (CommandLineArguments::Command::Extract == command_line_arguments.get_command()) {
         auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (false == std::filesystem::is_directory(archives_dir)) {
+        if (clp_s::InputSource::Filesystem == input_config.source
+            && false == std::filesystem::is_directory(archives_dir))
+        {
             SPDLOG_ERROR("'{}' is not a directory.", archives_dir);
             return 1;
         }
@@ -296,6 +319,7 @@ int main(int argc, char const* argv[]) {
         option.ordered = command_line_arguments.get_ordered_decompression();
         option.archives_dir = archives_dir;
         option.ordered_chunk_size = command_line_arguments.get_ordered_chunk_size();
+        option.input_config = std::move(input_config);
         if (false == command_line_arguments.get_mongodb_uri().empty()) {
             option.metadata_db
                     = {command_line_arguments.get_mongodb_uri(),
@@ -335,7 +359,9 @@ int main(int argc, char const* argv[]) {
         }
 
         auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (false == std::filesystem::is_directory(archives_dir)) {
+        if (clp_s::InputSource::Filesystem == input_config.source
+            && false == std::filesystem::is_directory(archives_dir))
+        {
             SPDLOG_ERROR("'{}' is not a directory.", archives_dir);
             return 1;
         }
@@ -358,7 +384,7 @@ int main(int argc, char const* argv[]) {
         auto const& archive_id = command_line_arguments.get_archive_id();
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
         if (false == archive_id.empty()) {
-            archive_reader->open(archives_dir, archive_id);
+            archive_reader->open(archives_dir, archive_id, input_config);
             if (false
                 == search_archive(command_line_arguments, archive_reader, expr, reducer_socket_fd))
             {
@@ -373,7 +399,7 @@ int main(int argc, char const* argv[]) {
                 }
 
                 auto const archive_id = entry.path().filename().string();
-                archive_reader->open(archives_dir, archive_id);
+                archive_reader->open(archives_dir, archive_id, input_config);
                 if (false
                     == search_archive(
                             command_line_arguments,

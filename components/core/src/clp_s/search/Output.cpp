@@ -64,6 +64,8 @@ bool Output::filter() {
 
     populate_string_queries(top_level_expr);
 
+    m_archive_reader->open_packed_streams();
+
     std::string message;
     auto const archive_id = m_archive_reader->get_archive_id();
     for (int32_t schema_id : matched_schemas) {
@@ -84,7 +86,7 @@ bool Output::filter() {
 
         add_wildcard_columns_to_searched_columns();
 
-        auto& reader = m_archive_reader->read_table(
+        auto& reader = m_archive_reader->read_schema_table(
                 schema_id,
                 m_output_handler->should_output_metadata(),
                 m_should_marshal_records

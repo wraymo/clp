@@ -102,13 +102,19 @@ public:
 
     OutputHandlerType get_output_handler_type() const { return m_output_handler_type; }
 
+    bool get_single_file_archive() const { return m_single_file_archive; }
+
     bool get_structurize_arrays() const { return m_structurize_arrays; }
 
     bool get_ordered_decompression() const { return m_ordered_decompression; }
 
     size_t get_ordered_chunk_size() const { return m_ordered_chunk_size; }
 
+    size_t get_minimum_table_size() const { return m_minimum_table_size; }
+
     std::vector<std::string> const& get_projection_columns() const { return m_projection_columns; }
+
+    InputSource get_input_source() const { return m_input_source; }
 
 private:
     // Methods
@@ -172,9 +178,11 @@ private:
     size_t m_target_encoded_size{8ULL * 1024 * 1024 * 1024};  // 8 GiB
     bool m_print_archive_stats{false};
     size_t m_max_document_size{512ULL * 1024 * 1024};  // 512 MB
+    bool m_single_file_archive{false};
     bool m_structurize_arrays{false};
     bool m_ordered_decompression{false};
     size_t m_ordered_chunk_size{0};
+    size_t m_minimum_table_size{1ULL * 1024 * 1024};  // 1 MB
 
     // Metadata db variables
     std::optional<clp::GlobalMetadataDBConfig> m_metadata_db_config;
@@ -208,6 +216,7 @@ private:
     int64_t m_count_by_time_bucket_size{0};  // Milliseconds
 
     OutputHandlerType m_output_handler_type{OutputHandlerType::Stdout};
+    InputSource m_input_source{InputSource::Filesystem};
 };
 }  // namespace clp_s
 
