@@ -18,6 +18,10 @@ ErrorCode CheckpointReader::try_read(char* buf, size_t num_bytes_to_read, size_t
         num_bytes_to_read = m_checkpoint - m_cur_pos;
     }
 
+    if (m_cur_pos == m_checkpoint) {
+        return ErrorCode_EndOfFile;
+    }
+
     auto rc = m_reader->try_read(buf, num_bytes_to_read, num_bytes_read);
     m_cur_pos += num_bytes_read;
     if (ErrorCode_EndOfFile == rc) {
