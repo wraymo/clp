@@ -187,6 +187,23 @@ std::shared_ptr<clp::ReaderInterface> try_create_file_reader(std::string const& 
     }
 }
 
+std::shared_ptr<clp::ReaderInterface> try_create_network_reader(
+        std::string const& url,
+        std::optional<std::unordered_map<std::string, std::string>> http_header_kv_pairs
+        = std::nullopt
+) {
+    return std::make_shared<clp::NetworkReader>(
+            url,
+            0,
+            false,
+            clp::CurlDownloadHandler::cDefaultOverallTimeout,
+            clp::CurlDownloadHandler::cDefaultConnectionTimeout,
+            clp::NetworkReader::cDefaultBufferPoolSize,
+            clp::NetworkReader::cDefaultBufferSize,
+            http_header_kv_pairs
+    );
+}
+
 std::shared_ptr<clp::ReaderInterface>
 try_create_network_reader(std::string const& url, InputOption const& config) {
     clp::aws::AwsAuthenticationSigner signer{
@@ -199,7 +216,7 @@ try_create_network_reader(std::string const& url, InputOption const& config) {
         clp::aws::S3Url s3_url{url};
         auto rc = signer.generate_presigned_url(s3_url, signed_url);
         if (clp::ErrorCode::ErrorCode_Success != rc) {
-            SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
+            SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", static_cast<int>(rc), url);
             return nullptr;
         }
 

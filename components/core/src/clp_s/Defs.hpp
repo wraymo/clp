@@ -39,6 +39,7 @@ using encoded_variable_t = int64_t;
 
 enum class InputSource : uint8_t {
     Filesystem,
+    Url,
     S3
 };
 
