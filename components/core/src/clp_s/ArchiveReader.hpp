@@ -90,12 +90,14 @@ public:
      * @param schema_id
      * @param should_extract_timestamp
      * @param should_marshal_records
+     * @param buffer_table
      * @return the schema reader
      */
-    SchemaReader& read_schema_table(
+    std::shared_ptr<SchemaReader> read_schema_table(
             int32_t schema_id,
             bool should_extract_timestamp,
-            bool should_marshal_records
+            bool should_marshal_records,
+            bool buffer_table
     );
 
     /**
@@ -150,7 +152,7 @@ private:
      * @param should_marshal_records
      */
     void initialize_schema_reader(
-            SchemaReader& reader,
+            std::shared_ptr<SchemaReader> reader,
             int32_t schema_id,
             bool should_extract_timestamp,
             bool should_marshal_records
@@ -163,7 +165,7 @@ private:
      * @return a pointer to the newly appended column reader or nullptr if no column reader was
      * created
      */
-    BaseColumnReader* append_reader_column(SchemaReader& reader, int32_t column_id);
+    BaseColumnReader* append_reader_column(std::shared_ptr<SchemaReader> reader, int32_t column_id);
 
     /**
      * Appends columns for the entire schema of an unordered object.
@@ -173,7 +175,7 @@ private:
      * @param should_marshal_records
      */
     void append_unordered_reader_columns(
-            SchemaReader& reader,
+            std::shared_ptr<SchemaReader> reader,
             int32_t mst_subtree_root_node_id,
             std::span<int32_t> schema_ids,
             bool should_marshal_records
@@ -208,6 +210,7 @@ private:
 
     PackedStreamReader m_stream_reader;
     ZstdDecompressor m_table_metadata_decompressor;
+    std::unordered_map<int32_t, std::shared_ptr<SchemaReader>> m_cached_schema_readers;
     SchemaReader m_schema_reader;
     std::shared_ptr<char[]> m_stream_buffer{};
     size_t m_stream_buffer_size{0ULL};

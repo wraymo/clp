@@ -29,8 +29,8 @@ enum class ErrorCode {
 enum class ArchiveReadStage {
     None,
     Opened,
-    OtherDictionariesRead,
-    ArrayDictionaryRead,
+    DictionariesRead,
+    TablesInitialized,
 };
 
 class Cursor {
@@ -46,6 +46,7 @@ public:
     // Constructors
     explicit Cursor(
             std::string archive_path,
+            InputOption const& input_option,
             std::optional<std::vector<std::string>> archive_ids,
             bool m_ignore_case
     );
@@ -88,6 +89,7 @@ private:
     bool m_ignore_case;
 
     std::string m_archive_path;
+    InputOption m_input_config;
     std::vector<std::string> m_archive_ids;
     size_t m_current_archive_index;
     size_t m_end_archive_index;

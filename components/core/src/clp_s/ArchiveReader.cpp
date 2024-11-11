@@ -148,27 +148,38 @@ void ArchiveReader::open_packed_streams() {
     m_stream_reader.open_packed_streams(m_archive_reader_adaptor);
 }
 
-SchemaReader& ArchiveReader::read_schema_table(
+std::shared_ptr<SchemaReader> ArchiveReader::read_schema_table(
         int32_t schema_id,
         bool should_extract_timestamp,
-        bool should_marshal_records
+        bool should_marshal_records,
+        bool buffer_table
 ) {
     if (m_id_to_schema_metadata.count(schema_id) == 0) {
         throw OperationFailed(ErrorCodeFileNotFound, __FILENAME__, __LINE__);
     }
 
+    if (buffer_table) {
+        auto cached_reader_it = m_cached_schema_readers.find(schema_id);
+        if (cached_reader_it != m_cached_schema_readers.end()) {
+            return cached_reader_it->second;
+        }
+    }
+    std::shared_ptr<SchemaReader> schema_reader = std::make_shared<SchemaReader>();
     initialize_schema_reader(
-            m_schema_reader,
+            schema_reader,
             schema_id,
             should_extract_timestamp,
             should_marshal_records
     );
-
     auto& schema_metadata = m_id_to_schema_metadata[schema_id];
     auto stream_buffer = read_stream(schema_metadata.stream_id, true);
-    m_schema_reader
-            .load(stream_buffer, schema_metadata.stream_offset, schema_metadata.uncompressed_size);
-    return m_schema_reader;
+    schema_reader
+            ->load(stream_buffer, schema_metadata.stream_offset, schema_metadata.uncompressed_size);
+    if (buffer_table) {
+        return m_cached_schema_readers.emplace(schema_id, std::move(schema_reader)).first->second;
+    }
+
+    return schema_reader;
 }
 
 std::vector<std::shared_ptr<SchemaReader>> ArchiveReader::read_all_tables() {
@@ -176,7 +187,7 @@ std::vector<std::shared_ptr<SchemaReader>> ArchiveReader::read_all_tables() {
     readers.reserve(m_id_to_schema_metadata.size());
     for (auto schema_id : m_schema_ids) {
         auto schema_reader = std::make_shared<SchemaReader>();
-        initialize_schema_reader(*schema_reader, schema_id, true, true);
+        initialize_schema_reader(schema_reader, schema_id, true, true);
         auto& schema_metadata = m_id_to_schema_metadata[schema_id];
         auto stream_buffer = read_stream(schema_metadata.stream_id, false);
         schema_reader->load(
@@ -189,7 +200,7 @@ std::vector<std::shared_ptr<SchemaReader>> ArchiveReader::read_all_tables() {
     return readers;
 }
 
-BaseColumnReader* ArchiveReader::append_reader_column(SchemaReader& reader, int32_t column_id) {
+BaseColumnReader* ArchiveReader::append_reader_column(std::shared_ptr<SchemaReader> reader, int32_t column_id) {
     BaseColumnReader* column_reader = nullptr;
     auto const& node = m_schema_tree->get_node(column_id);
     switch (node.get_type()) {
@@ -223,18 +234,18 @@ BaseColumnReader* ArchiveReader::append_reader_column(SchemaReader& reader, int3
     }
 
     if (column_reader) {
-        reader.append_column(column_reader);
+        reader->append_column(column_reader);
     }
     return column_reader;
 }
 
 void ArchiveReader::append_unordered_reader_columns(
-        SchemaReader& reader,
+        std::shared_ptr<SchemaReader> reader,
         int32_t mst_subtree_root_node_id,
         std::span<int32_t> schema_ids,
         bool should_marshal_records
 ) {
-    size_t object_begin_pos = reader.get_column_size();
+    size_t object_begin_pos = reader->get_column_size();
     for (int32_t column_id : schema_ids) {
         if (Schema::schema_entry_is_unordered_object(column_id)) {
             continue;
@@ -270,23 +281,23 @@ void ArchiveReader::append_unordered_reader_columns(
         }
 
         if (column_reader) {
-            reader.append_unordered_column(column_reader);
+            reader->append_unordered_column(column_reader);
         }
     }
 
     if (should_marshal_records) {
-        reader.mark_unordered_object(object_begin_pos, mst_subtree_root_node_id, schema_ids);
+        reader->mark_unordered_object(object_begin_pos, mst_subtree_root_node_id, schema_ids);
     }
 }
 
 void ArchiveReader::initialize_schema_reader(
-        SchemaReader& reader,
+        std::shared_ptr<SchemaReader> reader,
         int32_t schema_id,
         bool should_extract_timestamp,
         bool should_marshal_records
 ) {
     auto& schema = (*m_schema_map)[schema_id];
-    reader.reset(
+    reader->reset(
             m_schema_tree,
             m_projection,
             schema_id,
@@ -332,7 +343,7 @@ void ArchiveReader::initialize_schema_reader(
 
         if (should_extract_timestamp && column_reader && timestamp_column_ids.count(column_id) > 0)
         {
-            reader.mark_column_as_timestamp(column_reader);
+            reader->mark_column_as_timestamp(column_reader);
         }
     }
 }
@@ -340,8 +351,8 @@ void ArchiveReader::initialize_schema_reader(
 void ArchiveReader::store(FileWriter& writer) {
     std::string message;
     for (auto schema_id : m_schema_ids) {
-        auto& schema_reader = read_schema_table(schema_id, false, true);
-        while (schema_reader.get_next_message(message)) {
+        auto schema_reader = read_schema_table(schema_id, false, true, false);
+        while (schema_reader->get_next_message(message)) {
             writer.write(message.c_str(), message.length());
         }
     }

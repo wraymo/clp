@@ -17,11 +17,13 @@ namespace clp_s::search {
 
 Cursor::Cursor(
         std::string archive_path,
+        InputOption const& input_option,
         std::optional<std::vector<std::string>> archive_ids,
         bool ignore_case
 )
         : m_error_code(ErrorCode::QueryNotInitialized),
           m_archive_path(std::move(archive_path)),
+          m_input_config(input_option),
           m_current_archive_index(0),
           m_end_archive_index(0),
           m_current_schema_index(0),
@@ -33,23 +35,27 @@ Cursor::Cursor(
           m_completed_archive_cycles(false),
           m_completed_schema_cycles(false) {
     // Validate archive_path
-    if (false == std::filesystem::exists(m_archive_path)) {
-        throw std::invalid_argument("archive_path does not exist");
-    }
+    if (m_input_config.source == InputSource::Filesystem) {
+        if (false == std::filesystem::exists(m_archive_path)) {
+            throw std::invalid_argument("archive_path does not exist");
+        }
 
-    if (false == archive_ids.has_value() || archive_ids.value().empty()) {
-        for (auto const& entry : std::filesystem::directory_iterator(m_archive_path)) {
-            if (entry.is_directory()) {
-                m_archive_ids.push_back(entry.path().filename().string());
+        if (false == archive_ids.has_value() || archive_ids.value().empty()) {
+            for (auto const& entry : std::filesystem::directory_iterator(m_archive_path)) {
+                if (entry.is_directory()) {
+                    m_archive_ids.push_back(entry.path().filename().string());
+                }
             }
+            if (m_archive_ids.empty()) {
+                throw std::invalid_argument("no archive found in archive_path");
+            }
+        } else {
+            m_archive_ids = archive_ids.value();
         }
-        if (m_archive_ids.empty()) {
-            throw std::invalid_argument("no archive found in archive_path");
-        }
+        m_end_archive_index = m_archive_ids.size();
     } else {
-        m_archive_ids = archive_ids.value();
+        m_archive_ids = {""};
     }
-    m_end_archive_index = m_archive_ids.size();
 
     TimestampPattern::init();
 }
@@ -65,8 +71,9 @@ void Cursor::move_to_next_archive() {
 
 ErrorCode Cursor::load_archive() {
     if (m_archive_read_stage < ArchiveReadStage::Opened) {
-        m_archive_reader.open(m_archive_path, m_archive_ids[m_current_archive_index]);
-        m_timestamp_dict = m_archive_reader.read_timestamp_dictionary();
+        m_archive_reader
+                .open(m_archive_path, m_archive_ids[m_current_archive_index], m_input_config);
+        m_timestamp_dict = m_archive_reader.get_timestamp_dictionary();
         m_archive_reader.read_metadata();
         m_schema_tree = m_archive_reader.get_schema_tree();
         m_schema_map = m_archive_reader.get_schema_map();
@@ -104,14 +111,10 @@ ErrorCode Cursor::load_archive() {
     m_projection->resolve_columns(m_schema_tree);
     m_archive_reader.set_projection(m_projection);
 
-    bool has_array = false;
     m_matched_schemas.clear();
     for (auto schema_id : m_archive_reader.get_schema_ids()) {
         if (m_schema_match->schema_matched(schema_id)) {
             m_matched_schemas.push_back(schema_id);
-            if (m_schema_match->has_array(schema_id)) {
-                has_array = true;
-            }
         }
     }
 
@@ -119,20 +122,16 @@ ErrorCode Cursor::load_archive() {
         return ErrorCode::SchemaNotFound;
     }
 
-    m_current_schema_index = m_end_schema_index = 0;
-    m_completed_schema_cycles = false;
     // Read dictionaries and table metadata
-    if (m_archive_read_stage < ArchiveReadStage::OtherDictionariesRead) {
+    if (m_archive_read_stage < ArchiveReadStage::DictionariesRead) {
         m_var_dict = m_archive_reader.read_variable_dictionary();
         m_log_dict = m_archive_reader.read_log_type_dictionary();
-        m_archive_read_stage = ArchiveReadStage::OtherDictionariesRead;
-    }
-
-    if (has_array && m_archive_read_stage < ArchiveReadStage::ArrayDictionaryRead) {
         m_array_dict = m_archive_reader.read_array_dictionary();
-        m_archive_read_stage = ArchiveReadStage::ArrayDictionaryRead;
+        m_archive_read_stage = ArchiveReadStage::DictionariesRead;
     }
 
+    m_current_schema_index = m_end_schema_index = 0;
+    m_completed_schema_cycles = false;
     return ErrorCode::Success;
 }
 
@@ -217,9 +216,14 @@ ErrorCode Cursor::execute_query(std::string& query, std::vector<std::string> out
 
             if (m_expression_value != EvaluatedValue::False) {
                 m_query_runner->add_wildcard_columns_to_searched_columns();
+                if (m_archive_read_stage < ArchiveReadStage::TablesInitialized) {
+                    m_archive_reader.open_packed_streams();
+                    m_archive_read_stage = ArchiveReadStage::TablesInitialized;
+                }
 
-                auto& reader = m_archive_reader.read_table(m_current_schema_id, false, false);
-                reader.initialize_query_runner(m_query_runner);
+                auto reader = m_archive_reader
+                                      .read_schema_table(m_current_schema_id, false, false, true);
+                reader->initialize_query_runner(m_query_runner);
                 m_error_code = ErrorCode::Success;
                 m_current_schema_table_loaded = true;
                 break;
@@ -319,8 +323,14 @@ size_t Cursor::fetch_next(size_t num_rows, std::vector<ColumnData>& column_vecto
                 if (m_expression_value != EvaluatedValue::False) {
                     m_query_runner->add_wildcard_columns_to_searched_columns();
 
-                    auto& reader = m_archive_reader.read_table(m_current_schema_id, false, false);
-                    reader.initialize_query_runner(m_query_runner);
+                    if (m_archive_read_stage < ArchiveReadStage::TablesInitialized) {
+                        m_archive_reader.open_packed_streams();
+                        m_archive_read_stage = ArchiveReadStage::TablesInitialized;
+                    }
+                    auto reader
+                            = m_archive_reader
+                                      .read_schema_table(m_current_schema_id, false, false, true);
+                    reader->initialize_query_runner(m_query_runner);
                     m_error_code = ErrorCode::Success;
                     m_current_schema_table_loaded = true;
                 } else {

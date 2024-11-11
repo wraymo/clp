@@ -212,7 +212,30 @@ set(
         archive_constants.hpp
         ArchiveReader.cpp
         ArchiveReader.hpp
+        ArchiveReaderAdaptor.cpp
+        ArchiveReaderAdaptor.hpp
         BufferViewReader.hpp
+        ../clp/aws/AwsAuthenticationSigner.cpp
+        ../clp/aws/AwsAuthenticationSigner.hpp
+        ../clp/CheckpointReader.cpp
+        ../clp/CheckpointReader.hpp
+        ../clp/CurlDownloadHandler.cpp
+        ../clp/CurlDownloadHandler.hpp
+        ../clp/CurlEasyHandle.hpp
+        ../clp/CurlGlobalInstance.cpp
+        ../clp/CurlGlobalInstance.hpp
+        ../clp/CurlOperationFailed.hpp
+        ../clp/CurlStringList.hpp
+        ../clp/FileReader.cpp
+        ../clp/FileReader.hpp
+        ../clp/hash_utils.cpp
+        ../clp/hash_utils.hpp
+        ../clp/NetworkReader.cpp
+        ../clp/NetworkReader.hpp
+        ../clp/ReaderInterface.cpp
+        ../clp/ReaderInterface.hpp
+        ../clp/Thread.cpp
+        ../clp/Thread.hpp
         ColumnReader.cpp
         ColumnReader.hpp
         Compressor.hpp
@@ -229,6 +252,8 @@ set(
         FileWriter.cpp
         FileWriter.hpp
         JsonSerializer.hpp
+        PackedStreamReader.cpp
+        PackedStreamReader.hpp
         ParsedMessage.hpp
         ReaderUtils.cpp
         ReaderUtils.hpp
@@ -314,7 +339,7 @@ set(
         search/test.cpp
 )
 
-add_library(
+add_executable(
         clp-s-search
         ${CLP_S_SEARCH_LIB_SOURCES}
 )
@@ -323,12 +348,15 @@ target_link_libraries(
         clp-s-search
         PRIVATE
         Boost::filesystem Boost::iostreams Boost::program_options
+        ${CURL_LIBRARIES}
         absl::flat_hash_map
         kql
         simdjson
         yaml-cpp::yaml-cpp
         ZStd::ZStd
         spdlog::spdlog
+        OpenSSL::Crypto
+        clp::string_utils
 )
 target_include_directories(clp-s-search PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
 set_target_properties(
@@ -348,11 +376,11 @@ set_target_properties(
 #        PRIVATE
 #        clp-s-lib
 #)
-#set_target_properties(
-#        clp-s-search
-#        PROPERTIES
-#        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
-#)
+set_target_properties(
+        clp-s-search
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+)
 
 
 add_executable(

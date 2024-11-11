@@ -89,12 +89,12 @@ auto is_unreserved_characters(char c) -> bool {
     return is_alphabet(c) || is_decimal_digit(c) || c == '-' || c == '_' || c == '.' || c == '~';
 }
 
-auto get_formatted_timestamp_string(std::chrono::system_clock::time_point const& timestamp
+auto get_formatted_timestamp_string(std::chrono::sys_seconds const& timestamp
 ) -> string {
     return fmt::format("{:%Y%m%dT%H%M%SZ}", timestamp);
 }
 
-auto get_formatted_date_string(std::chrono::system_clock::time_point const& timestamp) -> string {
+auto get_formatted_date_string(std::chrono::sys_seconds const& timestamp) -> string {
     return fmt::format("{:%Y%m%d}", timestamp);
 }
 
@@ -209,7 +209,7 @@ auto AwsAuthenticationSigner::generate_presigned_url(
 ) const -> ErrorCode {
     auto const s3_region = s3_url.get_region();
 
-    auto const now = std::chrono::system_clock::now();
+    auto const now = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now());
     auto const timestamp = get_formatted_timestamp_string(now);
     auto const date = get_formatted_date_string(now);
 
